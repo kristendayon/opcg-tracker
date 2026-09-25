@@ -60,6 +60,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 <body><main>
 <h1>OPCG Collection Tracker</h1>
 <div id="banner" class="panel" hidden role="status"></div>
+<div id="priceNote" class="note" hidden role="status"></div>
 <div class="sub">Photograph Japanese One Piece cards → English details + latest Yuyu-tei price. <span id="updated"></span></div>
 
 <div class="panel">
@@ -187,7 +188,7 @@ normColl();
 const CKEY='opcg_custom_v1';
 let custom={};try{custom=JSON.parse(localStorage.getItem(CKEY)||'{}')||{}}catch(e){custom={}}
 const saveCustom=()=>{const ch=stamp();let ok=true;try{localStorage.setItem(CKEY,JSON.stringify(custom))}catch(e){ok=false}afterSave(ch);return ok};
-let BASE={};
+let BASE={},PRICE_STATUS='live';
 const KNOWN_FMT=/^(?:(?:OP|ST|EB|PRB)\d{2}-\d{3}|P-\d{3})$/;
 function applyCustom(){
   DB={...BASE};
@@ -200,7 +201,7 @@ function applyCustom(){
       if(!hasReal&&mp.length)d.manualPrice=true;DB[n]=d}
   }
 }
-function cardNotes(c){if(!c)return[];const t=[];if(!c.prices.some(p=>!p.manual))t.push('notyuyu');if(c.jpOnly&&!c.custom)t.push('noenglish');if(c.custom||c.manualPrice)t.push('manual');return t}
+function cardNotes(c){if(!c)return[];const t=[];if(!c.prices.some(p=>!p.manual)&&PRICE_STATUS!=='none')t.push('notyuyu');if(c.jpOnly&&!c.custom)t.push('noenglish');if(c.custom||c.manualPrice)t.push('manual');return t}
 const NOTE_TXT={notyuyu:'Not on Yuyu-tei',noenglish:'English details missing',manual:'Manual entry'};
 const noteTags=(c,n)=>cardNotes(c).map(k=>`<button class="tag ${k==='manual'?'':'warn'}" type="button" data-k="mtag" data-n="${esc(n||c.number)}" title="Click to add or edit details manually">${NOTE_TXT[k]}</button>`).join('');
 const shrink=async src=>{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src});
@@ -216,7 +217,10 @@ const moneyTxt=n=>rate()?`${peso(n)} (${yen(n)})`:yen(n);
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-fetch('cards.json').then(r=>r.json()).then(d=>{BASE=d.cards;applyCustom();$('#updated').textContent='Data updated '+d.updated;render();buildSearch()})
+fetch('cards.json').then(r=>r.json()).then(d=>{BASE=d.cards;const pm=d.prices||{status:'live'};PRICE_STATUS=pm.status||'live';applyCustom();$('#updated').textContent='Data updated '+d.updated+(PRICE_STATUS==='saved'?' · prices from '+String(pm.date||'').slice(0,10):'');
+  const pn=$('#priceNote');pn.hidden=PRICE_STATUS==='live';
+  if(PRICE_STATUS==='none')pn.innerHTML='<b>No Yuyu-tei prices right now.</b> Yuyu-tei refused the automatic price update, so cards appear without a market price. You can still add cards and set <b>My price</b>, or use <b>Add a price manually</b> on a card.';
+  else if(PRICE_STATUS==='saved')pn.innerHTML='<b>Prices are from a saved copy dated '+esc(String(pm.date||'').slice(0,10))+'.</b> The automatic update was refused by Yuyu-tei, so they may be out of date.';render();buildSearch()})
   .catch(()=>{$('#status').textContent='Could not load cards.json'});
 try{$('#rate').value=localStorage.getItem('opcg_rate')||''}catch(e){}
 function rateHint(){$('#rateHint').textContent=rate()?'Pesos shown first, yen in brackets.':'Type today\'s rate to see pesos.'}
