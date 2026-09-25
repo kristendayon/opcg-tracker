@@ -98,6 +98,8 @@ def scrape(codes, budget=TIME_BUDGET, session=None, sleep=time.sleep):
             print(f"  {code}: no Yuyu-tei page")
             continue
         items = parse_yuyutei(html)
+        if code.startswith(("OP", "ST")):   # drop 'pickup' rows that belong to other sets
+            items = [i for i in items if i["number"].startswith(code + "-")]
         out[code] = items
         print(f"  {code}: {len(items)} price rows")
     return out, info
