@@ -107,6 +107,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
       <button class="btn alt" id="xlsx" title="Excel file with photos">Excel</button>
       <button class="btn alt" id="pdf" title="PDF with photos">PDF</button>
       <button class="btn alt" id="csv" title="Text only - no pictures">CSV</button>
+      <button class="btn alt" id="pricesBtn" title="Load Yuyu-tei prices from pages you save in your own browser">Prices</button>
       <button class="btn alt" id="syncBtn" title="Use the same cards on your phone and computer">Sync</button>
       <button class="btn alt" id="backup" title="Saves cards AND your photos as a NEW file each time">Backup</button>
       <label class="btn alt" style="cursor:pointer">Restore<input id="restore" type="file" accept="application/json,.json" hidden></label>
@@ -192,6 +193,16 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   <div class="row"><button class="btn" id="syncGo" type="button">Connect</button><button class="btn alt" id="syncNow" type="button" hidden>Sync now</button><button class="btn alt" id="syncOff" type="button" hidden>Disconnect this device</button></div>
   <p class="status" id="syncMsg" style="margin:10px 0 0"></p>
   <p class="meta">The token is kept only on the device where you paste it and can be revoked any time in GitHub. If the same card is edited on two devices at once, the most recent edit wins. Deleting a card on one device deletes it on the others.</p></dialog>
+<dialog id="pd" style="width:min(660px,94vw)"><div class="row" style="justify-content:space-between"><b>Load Yuyu-tei prices</b><button class="btn alt mini" id="pdClose" type="button">Close</button></div>
+  <p class="meta">Yuyu-tei blocks automatic price updates from the website's server, but your own browser can open its pages. Save the set pages you need and load them here. Prices are kept on this device and used for those cards.</p>
+  <ol class="steps">
+   <li>Open each page below in a new tab (they are the sets in your collection).</li>
+   <li>Press <b>Cmd+S</b> (Windows: <b>Ctrl+S</b>) and save it as <b>Webpage, HTML only</b> (or "Complete"). Keep the file names.</li>
+   <li>Come back and choose the saved files. You can pick several at once.</li>
+  </ol>
+  <div class="row" id="pdLinks" style="margin:6px 0"></div>
+  <div class="row" style="margin-top:8px"><label class="btn" style="cursor:pointer">Choose saved pages<input id="pdFiles" type="file" accept=".html,.htm,text/html" multiple hidden></label><button class="btn alt" id="pdClear" type="button" hidden>Remove loaded prices</button></div>
+  <p class="status" id="pdMsg" style="margin:10px 0 0"></p></dialog>
 <div id="toast" role="status" hidden><span id="toastMsg"></span><button class="btn alt mini" id="toastUndo" hidden>Undo</button></div>
 </main>
 
@@ -214,12 +225,24 @@ normColl();
 const CKEY='opcg_custom_v1';
 let custom={};try{custom=JSON.parse(localStorage.getItem(CKEY)||'{}')||{}}catch(e){custom={}}
 const saveCustom=()=>{const ch=stamp();let ok=true;try{localStorage.setItem(CKEY,JSON.stringify(custom))}catch(e){ok=false}afterSave(ch);return ok};
-let BASE={},PRICE_STATUS='live';
+let BASE={},PRICE_STATUS='live',PRICE_META={};
+let LOCALP=null;try{LOCALP=JSON.parse(localStorage.getItem('opcg_prices_v1')||'null')}catch(e){LOCALP=null}
+const variantLabel=j=>j.includes('スーパーパラレル')?'Super Parallel':j.includes('パラレル')?'Parallel':j.includes('刻印なし')?'No stamp':'Normal';
+function mergeLocalPrices(){ // prices loaded from Yuyu-tei pages saved in this browser
+  if(PRICE_STATUS==='live'||!LOCALP||!LOCALP.sets)return;
+  const touched=new Set();
+  for(const rows of Object.values(LOCALP.sets))for(const it of rows){
+    let c=DB[it.number];
+    if(!c){c=DB[it.number]={number:it.number,name:it.jp_name.replace(/\((?:スーパー)?パラレル\)|\(刻印なし\)/g,'').trim(),type:'',color:[],cost:null,power:null,life:null,counter:null,rarity:it.rarity,set:it.number.split('-')[0],image:'',prices:[],jpOnly:true};touched.add(it.number)}
+    else if(!touched.has(it.number)){c=DB[it.number]={...c,prices:[]};touched.add(it.number)}
+    c.prices.push({variant:variantLabel(it.jp_name),rarity:it.rarity,jp_name:it.jp_name,price_jpy:it.price,stock:it.stock,url:it.url});
+  }
+}
 const KNOWN_FMT=/^(?:(?:OP|ST|EB|PRB)\d{2}-\d{3}|P-\d{3})$/;
 function applyCustom(){
-  DB={...BASE};
+  DB={...BASE};mergeLocalPrices();
   for(const [n,m] of Object.entries(custom)){
-    const b=BASE[n],mp=m.price>0?[{variant:'Normal',rarity:m.rarity||b?.rarity||'-',jp_name:'',price_jpy:m.price,stock:0,url:'',manual:true}]:[];
+    const b=DB[n],mp=m.price>0?[{variant:'Normal',rarity:m.rarity||b?.rarity||'-',jp_name:'',price_jpy:m.price,stock:0,url:'',manual:true}]:[];
     const hasReal=!!b&&b.prices.some(p=>!p.manual);
     if(!b)DB[n]={number:n,name:m.name||n,type:m.type||'CHARACTER',color:m.color||[],cost:m.cost??null,power:m.power??null,life:null,counter:null,rarity:m.rarity||'-',set:m.set||n.split('-')[0],image:'',prices:mp,custom:true};
     else{const d={...b,prices:[...b.prices,...(hasReal?[]:mp)]};
@@ -244,6 +267,15 @@ const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 let DB_ERR='';
+function renderPriceNote(){
+  const pn=$('#priceNote'),loaded=LOCALP&&LOCALP.sets&&Object.keys(LOCALP.sets).length;
+  pn.hidden=PRICE_STATUS==='live';if(pn.hidden)return;
+  const btn=' <button class="btn alt mini" id="pnOpen" type="button">Load prices from Yuyu-tei pages</button>';
+  pn.innerHTML=(PRICE_STATUS==='none'?'<b>The website has no Yuyu-tei prices.</b>':'<b>Website prices are from a saved copy dated '+esc(String(PRICE_META.date||'').slice(0,10))+'.</b>')
+    +' Yuyu-tei refuses automatic updates from the website.'
+    +(loaded?' <span>Prices loaded on this device'+(LOCALP.date?' ('+esc(String(LOCALP.date).slice(0,10))+')':'')+' are being used for '+Object.keys(LOCALP.sets).join(', ')+'.</span>':' Cards show without a market price until you load some.')
+    +btn;
+  $('#pnOpen').onclick=openPrices}
 function showDbError(msg){DB_ERR=msg;const n=$('#dbNote');n.hidden=false;
   n.innerHTML=`<b>Card data could not be loaded</b><span>${esc(msg)} Cards cannot be identified until this is fixed. Try again; if it keeps happening, the website build did not publish <code>cards.json</code>: open the repository's <b>Actions</b> tab and look at the latest run.</span><br><button class="btn alt mini" id="dbRetry" type="button" style="margin-top:6px">Try again</button>`;
   $('#dbRetry').onclick=loadCards;renderPending()}
@@ -254,9 +286,7 @@ function loadCards(){
     .catch(e=>showDbError(e&&e.message?e.message:String(e)))}
 function onCardsLoaded(d){
   BASE=d.cards;const pm=d.prices||{status:'live'};PRICE_STATUS=pm.status||'live';applyCustom();$('#updated').textContent='Data updated '+d.updated+(PRICE_STATUS==='saved'?' · prices from '+String(pm.date||'').slice(0,10):'');
-  const pn=$('#priceNote');pn.hidden=PRICE_STATUS==='live';
-  if(PRICE_STATUS==='none')pn.innerHTML='<b>No Yuyu-tei prices right now.</b> Yuyu-tei refused the automatic price update, so cards appear without a market price. You can still add cards and set <b>My price</b>, or use <b>Add a price manually</b> on a card.';
-  else if(PRICE_STATUS==='saved')pn.innerHTML='<b>Prices are from a saved copy dated '+esc(String(pm.date||'').slice(0,10))+'.</b> The automatic update was refused by Yuyu-tei, so they may be out of date.';render();buildSearch();renderPending();DB_ERR=''}
+  PRICE_META=pm;renderPriceNote();render();buildSearch();renderPending();DB_ERR=''}
 loadCards();
 try{$('#rate').value=localStorage.getItem('opcg_rate')||''}catch(e){}
 function rateHint(){$('#rateHint').textContent=rate()?'Pesos shown first, yen in brackets.':'Type today\'s rate to see pesos.'}
@@ -517,7 +547,7 @@ function render(){
       <td class="keep"><div class="row" style="flex-wrap:nowrap;gap:4px"><input type="number" min="0" step="any" data-k="sp" style="width:82px" placeholder="${x.sold?'Sold for':'My price'}" value="${x.sellPrice>0?x.sellPrice:''}" aria-label="My selling price per card">
         <select data-k="sc" aria-label="Currency of my price"><option value="PHP" ${(x.sellCur||defCur())==='PHP'?'selected':''}>₱</option><option value="JPY" ${(x.sellCur||defCur())==='JPY'?'selected':''}>¥</option></select></div>
         <div class="meta" data-k="diff">${diffHtml(x)}</div><button class="btn alt mini" data-k="fill" type="button" title="Fill with the Yuyu-tei price, rounded to the nearest 10">≈ market</button></td>
-      <td class="price">${(pr||x.sold)?money(u):'n/a'}${x.qty>1?`<br><span class="meta">× ${x.qty} = ${moneyTxt(line)}</span>`:''}${x.sold?'<br><span class="meta">price when sold</span>':''}</td>
+      <td class="price">${(pr||x.sold)?money(u):'n/a'}${x.qty>1?`<br><span class="meta">× ${x.qty} = ${moneyTxt(line)}</span>`:''}${x.sold?'<br><span class="meta">price when sold</span>':''}<br><a class="meta" href="${esc(pr&&pr.url?pr.url:'https://yuyu-tei.jp/sell/opc/s/search?search_word='+encodeURIComponent(x.number))}" target="_blank" rel="noopener">${pr&&pr.url?'Open on':'Look up on'} Yuyu-tei ↗</a></td>
       <td class="keep"><button class="btn alt mini danger" data-k="del" type="button" title="Delete this entry">Delete</button></td>`;
     const im=tr.querySelector('[data-k=img]'); if(im) im.onclick=()=>openLb(x);
     const ph=tr.querySelector('[data-k=ph]'); if(ph) ph.onclick=()=>pickPhoto(x);
@@ -587,6 +617,41 @@ function afterCustomChange(n){saveCustom();applyCustom();
   if(HAY.size&&DB[n])HAY.set(n,[DB[n].name,n,DB[n].set,DB[n].type,...(DB[n].color||[]),DB[n].rarity,...(DB[n].prices||[]).map(p=>p.jp_name)].join(' ').toLowerCase());
   pending.forEach(p=>{if(p.number===n){const c=cardFor(n);p.variant=c?bestVariantIndex(c):0}});
   render();renderPending()}
+// ---------- Yuyu-tei prices from pages saved in your own browser ----------
+function parseYuyuHtml(html){
+  const doc=new DOMParser().parseFromString(html,'text/html');doc.querySelectorAll('del,s,strike').forEach(e=>e.remove());
+  const NUMBER=/^([A-Z]{1,3}\d{0,2}-\d{3})\s+(\S+)\s+(.+)$/,HREF=/\/sell\/opc\/card\/([^/]+)\/(\d+)/,items=[],seen=new Set();
+  const cardLinks=[...doc.querySelectorAll('a[href]')].filter(a=>HREF.test(a.getAttribute('href')));
+  cardLinks.forEach(a=>{
+    const href=a.getAttribute('href');if(seen.has(href))return;
+    const texts=[a.textContent,a.getAttribute('title'),a.querySelector('img')&&a.querySelector('img').getAttribute('alt')];
+    let m=null;for(const t of texts){if(!t)continue;m=t.replace(/\s+/g,' ').trim().match(NUMBER);if(m)break}
+    if(!m)return;
+    let box=a;while(box.parentElement&&!['BODY','HTML'].includes(box.parentElement.tagName)){
+      if([...box.parentElement.querySelectorAll('a[href]')].some(x=>HREF.test(x.getAttribute('href'))&&x.getAttribute('href')!==href))break;box=box.parentElement}
+    const text=box.textContent.replace(/\s+/g,' ').trim(),pm=text.match(/([\d,]+)\s*円/);if(!pm)return;
+    const sm=text.match(/在庫\s*[:：]?\s*(\S+)/);let stock=0;if(sm)stock=/^\d+$/.test(sm[1])?+sm[1]:(sm[1]==='◯'?1:0);
+    seen.add(href);items.push({number:m[1],rarity:m[2],jp_name:m[3].trim(),price:+pm[1].replace(/,/g,''),stock,url:href.startsWith('/')?'https://yuyu-tei.jp'+href:href})});
+  return items}
+function openPrices(){
+  const sets=[...new Set(coll.map(x=>x.number.split('-')[0].toLowerCase()))].filter(v=>/^(op|st|eb|prb)\d+$/.test(v)).sort();
+  $('#pdLinks').innerHTML=sets.length?sets.map(v=>`<a class="btn alt mini" href="https://yuyu-tei.jp/sell/opc/s/${v}" target="_blank" rel="noopener">${v.toUpperCase()} page ↗</a>`).join(' '):'<span class="meta">Add some cards first, or open yuyu-tei.jp/sell/opc/s/op17 (change op17 to the set you need).</span>';
+  const n=LOCALP&&LOCALP.sets?Object.keys(LOCALP.sets):[];$('#pdClear').hidden=!n.length;
+  $('#pdMsg').textContent=n.length?`Loaded on this device: ${n.join(', ')}${LOCALP.date?' ('+String(LOCALP.date).slice(0,10)+')':''}.`+(PRICE_STATUS==='live'?' The website already has live prices, so these are not used.':''):'';
+  $('#pd').showModal()}
+$('#pricesBtn').onclick=openPrices;$('#pdClose').onclick=()=>$('#pd').close();
+$('#pdClear').onclick=()=>{if(!confirm('Remove the prices loaded on this device?'))return;LOCALP=null;try{localStorage.removeItem('opcg_prices_v1')}catch(_){}applyCustom();render();renderPriceNote();if(HAY.size)runSearch(false);openPrices();$('#pdMsg').textContent='Removed.'};
+$('#pdFiles').onchange=async e=>{
+  const files=[...e.target.files];e.target.value='';if(!files.length)return;const msg=$('#pdMsg');msg.textContent='Reading…';
+  const sets={...(LOCALP&&LOCALP.sets||{})},got=[],bad=[];
+  for(const f of files){let items=[];try{items=parseYuyuHtml(await f.text())}catch(_){}
+    if(!items.length){bad.push(f.name);continue}
+    const cnt={};items.forEach(it=>{const k=it.number.split('-')[0];cnt[k]=(cnt[k]||0)+1});const code=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0][0];
+    if(/^(OP|ST)/.test(code))items=items.filter(it=>it.number.startsWith(code+'-')); // drop 'pickup' rows from other sets
+    sets[code]=items;got.push(`${code} (${items.length})`)}
+  if(got.length){LOCALP={date:new Date().toISOString(),sets};try{localStorage.setItem('opcg_prices_v1',JSON.stringify(LOCALP))}catch(_){alert('Could not save the prices (device storage is full).')}
+    applyCustom();render();renderPending();renderPriceNote();if(HAY.size)runSearch(false);$('#pdClear').hidden=false}
+  msg.textContent=(got.length?`Loaded prices: ${got.join(', ')}. `:'')+(bad.length?`No prices found in: ${bad.join(', ')}. Save the Yuyu-tei set page itself (for example yuyu-tei.jp/sell/opc/s/op17) with the price list showing, and try again. If it still fails, send that file to Claude.`:'')+(PRICE_STATUS==='live'&&got.length?' (The website already has live prices, so these are not used.)':'')};
 // ---------- database search ----------
 let SHOWN=24, HAY=new Map();
 const lowest=c=>{const p=c.prices||[];if(!p.length)return null;const n=p.filter(x=>x.variant==='Normal');return Math.min(...(n.length?n:p).map(x=>x.price_jpy))};
@@ -855,7 +920,9 @@ async function snapshot(reason){
 function dailySnap(){if(!coll.length&&!Object.keys(custom).length)return;const d=today();try{if(localStorage.getItem('opcg_snapday')===d)return;localStorage.setItem('opcg_snapday',d)}catch(e){}snapshot('Daily safety copy')}
 function applyData(d){ // replace what is on this device with backup/snapshot data
   coll=d.coll.filter(x=>x&&x.number&&x.qty>0);normColl();const now=Date.now();coll.forEach(x=>x.u=now);
-  if(d.custom&&typeof d.custom==='object'){custom=d.custom;Object.values(custom).forEach(m=>m.u=now);saveCustom();applyCustom()}
+  if(d.custom&&typeof d.custom==='object'){custom=d.custom;Object.values(custom).forEach(m=>m.u=now);saveCustom()}
+  if(d.localPrices&&typeof d.localPrices==='object'){LOCALP=d.localPrices;try{localStorage.setItem('opcg_prices_v1',JSON.stringify(LOCALP))}catch(_){}}
+  applyCustom();renderPriceNote();
   if(d.rate!==undefined&&d.rate!==null){$('#rate').value=d.rate;try{localStorage.setItem('opcg_rate',d.rate);localStorage.setItem(RUKEY,String(now))}catch(_){}}
   rateHint();save();render();renderPending()}
 $('#recover').onclick=async()=>{
@@ -896,7 +963,7 @@ function afterSave(ch){updateBanner();updateSyncBtn();if(sync&&ch)scheduleSync(4
 const stamp2=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${today()}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`};
 function doBackup(){
   const name=`opcg-backup-${stamp2()}.json`;
-  download(new Blob([JSON.stringify({app:'opcg-tracker',version:1,saved:new Date().toISOString(),rate:$('#rate').value,custom,coll})],{type:'application/json'}),name);
+  download(new Blob([JSON.stringify({app:'opcg-tracker',version:1,saved:new Date().toISOString(),rate:$('#rate').value,custom,localPrices:LOCALP,coll})],{type:'application/json'}),name);
   try{localStorage.setItem(LBKEY,String(Date.now()));localStorage.setItem(CNKEY,'0')}catch(e){}changeCount=0;updateBanner();
   exSet(`Backup saved as ${name}. Each backup is a new file, older ones are never overwritten. Keep them somewhere safe (Files, iCloud Drive, Google Drive).`);toast('Backup downloaded')}
 $('#backup').onclick=doBackup;
