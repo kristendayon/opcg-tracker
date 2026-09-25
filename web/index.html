@@ -66,6 +66,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 <body><main>
 <h1>OPCG Collection Tracker</h1>
 <div id="banner" class="panel" hidden role="status"></div>
+<div id="dbNote" class="note" hidden role="alert"></div>
 <div id="priceNote" class="note" hidden role="status"></div>
 <div class="sub">Photograph Japanese One Piece cards → English details + latest Yuyu-tei price. <span id="updated"></span></div>
 
@@ -242,11 +243,21 @@ const moneyTxt=n=>rate()?`${peso(n)} (${yen(n)})`:yen(n);
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-fetch('cards.json').then(r=>r.json()).then(d=>{BASE=d.cards;const pm=d.prices||{status:'live'};PRICE_STATUS=pm.status||'live';applyCustom();$('#updated').textContent='Data updated '+d.updated+(PRICE_STATUS==='saved'?' · prices from '+String(pm.date||'').slice(0,10):'');
+let DB_ERR='';
+function showDbError(msg){DB_ERR=msg;const n=$('#dbNote');n.hidden=false;
+  n.innerHTML=`<b>Card data could not be loaded</b><span>${esc(msg)} Cards cannot be identified until this is fixed. Try again; if it keeps happening, the website build did not publish <code>cards.json</code>: open the repository's <b>Actions</b> tab and look at the latest run.</span><br><button class="btn alt mini" id="dbRetry" type="button" style="margin-top:6px">Try again</button>`;
+  $('#dbRetry').onclick=loadCards;renderPending()}
+function loadCards(){
+  $('#dbNote').hidden=true;
+  fetch('cards.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error('The server answered HTTP '+r.status+' for cards.json.');return r.json().catch(()=>{throw new Error('cards.json is not valid data.')})})
+    .then(d=>{if(!d||!d.cards||!Object.keys(d.cards).length)throw new Error('cards.json contains no cards.');onCardsLoaded(d)})
+    .catch(e=>showDbError(e&&e.message?e.message:String(e)))}
+function onCardsLoaded(d){
+  BASE=d.cards;const pm=d.prices||{status:'live'};PRICE_STATUS=pm.status||'live';applyCustom();$('#updated').textContent='Data updated '+d.updated+(PRICE_STATUS==='saved'?' · prices from '+String(pm.date||'').slice(0,10):'');
   const pn=$('#priceNote');pn.hidden=PRICE_STATUS==='live';
   if(PRICE_STATUS==='none')pn.innerHTML='<b>No Yuyu-tei prices right now.</b> Yuyu-tei refused the automatic price update, so cards appear without a market price. You can still add cards and set <b>My price</b>, or use <b>Add a price manually</b> on a card.';
-  else if(PRICE_STATUS==='saved')pn.innerHTML='<b>Prices are from a saved copy dated '+esc(String(pm.date||'').slice(0,10))+'.</b> The automatic update was refused by Yuyu-tei, so they may be out of date.';render();buildSearch()})
-  .catch(()=>{$('#status').textContent='Could not load cards.json'});
+  else if(PRICE_STATUS==='saved')pn.innerHTML='<b>Prices are from a saved copy dated '+esc(String(pm.date||'').slice(0,10))+'.</b> The automatic update was refused by Yuyu-tei, so they may be out of date.';render();buildSearch();renderPending();DB_ERR=''}
+loadCards();
 try{$('#rate').value=localStorage.getItem('opcg_rate')||''}catch(e){}
 function rateHint(){$('#rateHint').textContent=rate()?'Pesos shown first, yen in brackets.':'Type today\'s rate to see pesos.'}
 $('#rate').oninput=()=>{try{localStorage.setItem('opcg_rate',$('#rate').value);localStorage.setItem(RUKEY,String(Date.now()))}catch(e){};if(sync)scheduleSync(4000);rateHint();render();renderPending()};
@@ -354,7 +365,8 @@ function renderPending(){
     const card=cardFor(p.number),notes=cardNotes(card);
     const el=document.createElement('div');el.className='item';
     let banner='';
-    if(!card&&p.number)banner=`<div class="note"><b>Not found in the card data or on Yuyu-tei</b><span>${esc(p.number)} isn't listed anywhere the app looks. If the scan misread a digit, fix the number above. If the card is real (very new, or a special print), add its details yourself.</span><br><button class="btn alt mini" data-k="man" style="margin-top:6px">Add details manually</button></div>`;
+    if(!card&&p.number&&!Object.keys(DB).length)banner=`<div class="note"><b>Card data isn't loaded</b><span>The number ${esc(p.number)} was read from the photo, but its details can't be looked up until the card data loads (see the red message at the top of the page). Note the number, fix the loading problem, then scan again.</span></div>`;
+    else if(!card&&p.number)banner=`<div class="note"><b>Not found in the card data or on Yuyu-tei</b><span>${esc(p.number)} isn't listed anywhere the app looks. If the scan misread a digit, fix the number above. If the card is real (very new, or a special print), add its details yourself.</span><br><button class="btn alt mini" data-k="man" style="margin-top:6px">Add details manually</button></div>`;
     else if(!card&&p.reason)banner=`<div class="note photo"><b>This file couldn't be opened${p.fname?': '+esc(p.fname):''}</b><span>${p.reason==='heic'?'It looks like an iPhone HEIC photo that this browser could not convert (the converter needs an internet connection the first time). Export it as JPEG (Mac Photos: File > Export), or on iPhone use Settings > Camera > Formats > Most Compatible, or type the number above.':'This browser cannot open that kind of file. Try a JPEG or PNG photo, or type the number above.'}</span></div>`;
     else if(!card)banner=`<div class="note photo"><b>Couldn't read the card number from this photo</b><span>This is a photo problem, not a Yuyu-tei problem. Retake it flat, in even light, with the number at the bottom-right sharp, or type the number above.</span></div>`;
     else if(notes.includes('noenglish'))banner=`<div class="note"><b>On Yuyu-tei, but English details are missing</b><span>The name shown is Japanese and cost, power and color are blank. You can fill them in.</span><br><button class="btn alt mini" data-k="man" style="margin-top:6px">Add details manually</button></div>`;
@@ -388,7 +400,6 @@ async function handleFiles(files){
     let f=orig;
     try{
       f=await toUsable(f);
-      if(!Object.keys(DB).length) throw new Error('db');
       if(mode()==='batch'){
         $('#status').textContent=`Scanning ${f.name}…`;
         const res=await readMany(f,(i,n)=>$('#status').textContent=`Scanning ${f.name}: section ${i}/${n}…`);
