@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1a2238">
+<link rel="manifest" href="manifest.webmanifest">
+<title>OPCG Collection Tracker</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--ink:#1a2238;--mute:#6b7280;--line:#e3e6ee;--accent:#d7263d;--ok:#1b8a5a}
+@media(prefers-color-scheme:dark){:root{--bg:#10131c;--card:#1a1f2e;--ink:#eef0f6;--mute:#9aa3b5;--line:#2b3247;--accent:#ff5c72;--ok:#4cc38a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 4px}.sub{color:var(--mute);font-size:13px;margin-bottom:14px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+button,select,input{font:inherit;color:inherit}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
+.btn.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}
+input[type=text],input[type=number],input[type=date],select{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.drop{display:block;border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--mute);cursor:pointer}
+.item{display:grid;grid-template-columns:72px 1fr;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}.item img{width:72px;border-radius:6px;background:var(--line);min-height:50px;object-fit:cover}
+.name{font-weight:600}.meta{color:var(--mute);font-size:13px}.warn{color:var(--accent);font-size:13px}
+.price{font-weight:700}.tot{font-size:18px;font-weight:700}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:3px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+tr.sold td{opacity:.6}tr.sold td.keep{opacity:1}
+.status{font-size:13px;color:var(--mute)}
+.rate{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg label{padding:7px 12px;cursor:pointer;position:relative}.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}.seg label:focus-within{outline:2px solid var(--accent);outline-offset:-2px}.seg input:checked+span{font-weight:700;color:var(--accent)}
+.wrap{overflow-x:auto}
+.danger{color:var(--accent)!important;border-color:var(--accent)!important}
+[hidden]{display:none!important}
+#banner{border-left:4px solid var(--accent)}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;z-index:50;display:flex;gap:10px;align-items:center;max-width:92vw}
+#toast .btn{color:var(--bg);border-color:var(--bg)}
+ol.steps{padding-left:20px;margin:8px 0}ol.steps li{margin:6px 0}
+.tag{display:inline-block;font-size:11px;border:1px solid var(--line);color:var(--mute);border-radius:6px;padding:0 5px;margin:2px 3px 0 0;background:transparent;cursor:pointer;font-family:inherit}
+.tag.warn{border-color:var(--accent);color:var(--accent)}
+.note{border-left:3px solid var(--accent);padding:6px 9px;background:var(--bg);border-radius:6px;font-size:13px;margin-top:6px}
+.note.photo{border-color:#e6a100}.note b{display:block}
+.mdg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0}
+.mdg label{display:flex;flex-direction:column;font-size:13px;color:var(--mute);gap:3px}
+.mdg .full{grid-column:1/-1}
+.up{color:var(--ok)}.down{color:var(--accent)}
+.res{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:12px}
+.rc{display:flex;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--bg)}
+.rc img{width:58px;height:81px;object-fit:cover;border-radius:5px;background:var(--line);flex:none;cursor:zoom-in}
+.badge{display:inline-block;font-size:11px;border:1px solid var(--ok);color:var(--ok);border-radius:6px;padding:0 5px;margin-left:4px}
+img.thumb{width:44px;height:62px;object-fit:cover;border-radius:4px;background:var(--line);cursor:zoom-in;flex:none}
+.cardcell{display:flex;gap:8px;align-items:flex-start}
+.mini{padding:2px 8px;font-size:12px}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);max-width:min(720px,94vw);padding:14px}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+.figs{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}.figs figure{margin:0;text-align:center;max-width:300px}.figs img{max-width:100%;max-height:60vh;border-radius:8px}
+</style>
+</head>
+<body><main>
+<h1>OPCG Collection Tracker</h1>
+<div id="banner" class="panel" hidden role="status"></div>
+<div class="sub">Photograph Japanese One Piece cards → English details + latest Yuyu-tei price. <span id="updated"></span></div>
+
+<div class="panel">
+  <div class="row" style="margin-bottom:10px">
+    <span class="seg" role="radiogroup" aria-label="Scan mode">
+      <label><input type="radio" name="mode" value="single" checked><span>One card per photo</span></label>
+      <label><input type="radio" name="mode" value="batch"><span>Many cards per photo</span></label>
+    </span>
+    <span class="meta" id="modeHint">Best accuracy. Card number at the bottom-right must be visible.</span>
+  </div>
+  <label class="drop" id="drop">Tap to choose photos (or drop them here)
+    <input id="file" type="file" accept="image/*" multiple hidden>
+  </label>
+  <div class="row" style="margin-top:10px">
+    <input id="manual" type="text" placeholder="…or type a number, e.g. OP05-119" size="24">
+    <button class="btn alt" id="addManual">Add</button>
+    <span class="status" id="status" aria-live="polite"></span>
+  </div>
+</div>
+
+<div class="panel" id="searchPanel">
+  <b>Search card database</b> <span class="meta" id="sCount"></span>
+  <div class="row" style="margin-top:8px">
+    <input id="q" type="text" placeholder="Name, number or Japanese name (e.g. luffy, OP05, ルフィ)" style="flex:1;min-width:220px" aria-label="Search cards">
+    <select id="fColor" aria-label="Color"><option value="">Any color</option></select>
+    <select id="fType" aria-label="Type"><option value="">Any type</option></select>
+    <select id="fSet" aria-label="Set"><option value="">Any set</option></select>
+    <select id="fRarity" aria-label="Rarity"><option value="">Any rarity</option></select>
+    <select id="fCost" aria-label="Cost"><option value="">Any cost</option></select>
+    <select id="fSort" aria-label="Sort"><option value="num">Sort: number</option><option value="hi">Price: high → low</option><option value="lo">Price: low → high</option><option value="name">Name A–Z</option></select>
+    <button class="btn alt mini" id="qReset">Reset</button>
+  </div>
+  <div class="res" id="results"></div>
+  <div class="row" style="margin-top:10px"><button class="btn alt" id="more" hidden>Show more</button></div>
+</div>
+
+<div class="panel" id="pending" hidden>
+  <div class="row" style="justify-content:space-between"><div><b>Review scans</b> <span class="meta">— confirm number and version, then add</span></div>
+  <button class="btn" id="addAll">Add all valid</button></div>
+  <div id="pendingList"></div>
+</div>
+
+<div class="panel">
+  <div class="row" style="justify-content:space-between">
+    <div class="rate row">
+      <b>Conversion rate</b> 1 ¥ = ₱ <input id="rate" type="number" step="0.0001" min="0" style="width:96px" placeholder="e.g. 0.38">
+      <span class="meta" id="rateHint"></span>
+    </div>
+    <div class="row">
+      <select id="filter" aria-label="Filter"><option value="all">All cards</option><option value="unsold">Not sold</option><option value="own">In collection</option><option value="sale">For sale</option><option value="reserved">Reserved</option><option value="sold">Sold</option></select>
+      <button class="btn alt" id="xlsx" title="Excel file with photos">Excel</button>
+      <button class="btn alt" id="pdf" title="PDF with photos">PDF</button>
+      <button class="btn alt" id="csv" title="Text only - no pictures">CSV</button>
+      <button class="btn alt" id="syncBtn" title="Use the same cards on your phone and computer">Sync</button>
+      <button class="btn alt" id="backup" title="Saves cards AND your photos as a NEW file each time">Backup</button>
+      <label class="btn alt" style="cursor:pointer">Restore<input id="restore" type="file" accept="application/json,.json" hidden></label>
+      <label class="btn alt" style="cursor:pointer" title="Update statuses from an edited Excel or CSV export">Import<input id="importf" type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
+      <button class="btn alt" id="recover" title="Automatic safety copies kept on this device">Recover</button>
+      <button class="btn alt" id="clear">Clear all</button>
+    </div>
+  </div>
+  <div class="row" style="margin:12px 0">
+    <div><div class="meta">In hand (not sold)</div><div class="tot" id="total">–</div><div class="meta" id="count"></div></div>
+    <div style="width:28px"></div>
+    <div><div class="meta">At your prices</div><div class="tot" id="askTotal">–</div><div class="meta" id="askCount"></div></div>
+    <div style="width:28px"></div>
+    <div><div class="meta">Sold (for)</div><div class="tot" id="soldTotal">–</div><div class="meta" id="soldCount"></div></div>
+  </div>
+  <div class="status" id="exStatus" aria-live="polite" style="margin-bottom:6px">Excel and PDF include photos and use whatever is in the filter above.</div>
+  <div id="bulkBar" class="row" hidden style="margin:6px 0;padding:8px 10px;border:1px solid var(--accent);border-radius:8px"><b id="bulkN"></b><button class="btn alt mini danger" id="bulkDel" type="button">Delete selected</button><button class="btn alt mini" id="bulkClear" type="button">Clear selection</button></div>
+  <div class="wrap"><table><thead><tr><th><input type="checkbox" id="selAll" aria-label="Select all shown"></th><th>Card</th><th>Color</th><th>Cost</th><th>Power</th><th>Version</th><th>Qty</th><th>Status</th><th>My price</th><th>Yuyu-tei price</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+</div>
+<p class="meta">Prices: yuyu-tei.jp selling price, refreshed daily. Card data: community optcgjson. Unofficial fan tool. Sold rows keep the price the card had on the day you marked it sold.</p>
+<dialog id="lb"><div class="row" style="justify-content:space-between"><b id="lbTitle"></b><button class="btn alt mini" id="lbClose">Close</button></div>
+  <div class="figs" id="lbFigs" style="margin:10px 0"></div>
+  <div class="row"><button class="btn alt mini" id="lbReplace">Replace my photo</button><button class="btn alt mini" id="lbRemove">Remove my photo</button></div></dialog>
+<dialog id="md" style="width:min(560px,94vw)"><b id="mdTitle"></b>
+  <p class="meta" id="mdWhy" style="margin:6px 0 0"></p>
+  <div class="mdg">
+    <label>Card number<input type="text" id="mdNum" readonly></label>
+    <label>Name (English) *<input type="text" id="mdName"></label>
+    <label>Type<select id="mdType"><option>CHARACTER</option><option>LEADER</option><option>EVENT</option><option>STAGE</option></select></label>
+    <label>Rarity<select id="mdRar"><option>L</option><option>C</option><option>UC</option><option>R</option><option>SR</option><option>SEC</option><option>SP</option><option>TR</option><option>P</option><option>-</option></select></label>
+    <label>Cost<input type="number" id="mdCost" min="0"></label>
+    <label>Power<input type="number" id="mdPower" min="0" step="1000"></label>
+    <div class="full"><div class="meta">Color (pick 1 or 2)</div><div class="row" id="mdColors"></div></div>
+    <label class="full">Reference price in yen (optional) - used for values when Yuyu-tei has no price<input type="number" id="mdPrice" min="0"></label>
+  </div>
+  <div class="row"><button class="btn" id="mdSave" type="button">Save</button><button class="btn alt" id="mdCancel" type="button">Cancel</button><button class="btn alt" id="mdDel" type="button" hidden>Remove my manual entry</button></div>
+</dialog>
+<dialog id="rc" style="width:min(620px,94vw)"><div class="row" style="justify-content:space-between"><b>Recover an earlier copy</b><button class="btn alt mini" id="rcClose">Close</button></div>
+  <p class="meta">Safety copies kept automatically on this device (newest first, the last 12).</p><div id="rcList"></div></dialog>
+<dialog id="sd" style="width:min(660px,94vw)"><div class="row" style="justify-content:space-between"><b>Same cards on your phone and Mac</b><button class="btn alt mini" id="sdClose">Close</button></div>
+  <p class="meta">Sync keeps one collection on all your devices. It is stored in a <b>private</b> repository in your own GitHub account (free). Changes made on one device appear on the others within a few seconds of opening the app.</p>
+  <details open><summary><b>One-time setup</b></summary>
+  <ol class="steps">
+   <li>On github.com click <b>+ → New repository</b>. Name it <code>opcg-data</code>, choose <b>Private</b>, tick <b>Add a README</b>, and create it.</li>
+   <li>Open <b>github.com/settings/personal-access-tokens/new</b>. Name: <code>opcg-sync</code>. Repository access: <b>Only select repositories</b> → <code>opcg-data</code>. Under Repository permissions set <b>Contents</b> to <b>Read and write</b>. Click <b>Generate token</b> and copy it.</li>
+   <li>Paste below and tap <b>Connect</b>. On your other devices open this same app page and repeat step 3 with the same repository and token.</li>
+  </ol></details>
+  <div class="mdg"><label>Repository (owner/name)<input type="text" id="syncRepo" placeholder="your-username/opcg-data" autocapitalize="off" autocomplete="off"></label>
+   <label>Token<input type="password" id="syncTok" autocomplete="off"></label></div>
+  <div class="row"><button class="btn" id="syncGo" type="button">Connect</button><button class="btn alt" id="syncNow" type="button" hidden>Sync now</button><button class="btn alt" id="syncOff" type="button" hidden>Disconnect this device</button></div>
+  <p class="status" id="syncMsg" style="margin:10px 0 0"></p>
+  <p class="meta">The token is kept only on the device where you paste it and can be revoked any time in GitHub. If the same card is edited on two devices at once, the most recent edit wins. Deleting a card on one device deletes it on the others.</p></dialog>
+<div id="toast" role="status" hidden><span id="toastMsg"></span><button class="btn alt mini" id="toastUndo" hidden>Undo</button></div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+let DB={}, worker=null;
+const KEY='opcg_collection_v1';
+let coll=[]; try{coll=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){}
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-3);
+const STATUS={own:'In collection',sale:'For sale',reserved:'Reserved',sold:'Sold'};
+const statusKey=x=>x.sold?'sold':(x.avail||'own');
+const statusLabel=x=>STATUS[statusKey(x)];
+const matchFilter=(x,f)=>f==='all'||(f==='unsold'?!x.sold:statusKey(x)===f);
+function normColl(){coll=(Array.isArray(coll)?coll:[]).filter(x=>x&&x.number);coll.forEach(x=>{if(!x.id)x.id=uid();if(!x.variant)x.variant='Normal';x.qty=Math.max(1,+x.qty||1)})}
+let warned=false;
+const rawSave=()=>{try{localStorage.setItem(KEY,JSON.stringify(coll));return true}catch(e){if(!warned){warned=true;alert('Your device storage is full, so recent changes may not be saved. Tap Backup, then remove some photos or cards.')}return false}};
+function save(){const ch=stamp();const ok=rawSave();afterSave(ch);return ok}
+normColl();
+const CKEY='opcg_custom_v1';
+let custom={};try{custom=JSON.parse(localStorage.getItem(CKEY)||'{}')||{}}catch(e){custom={}}
+const saveCustom=()=>{const ch=stamp();let ok=true;try{localStorage.setItem(CKEY,JSON.stringify(custom))}catch(e){ok=false}afterSave(ch);return ok};
+let BASE={};
+const KNOWN_FMT=/^(?:(?:OP|ST|EB|PRB)\d{2}-\d{3}|P-\d{3})$/;
+function applyCustom(){
+  DB={...BASE};
+  for(const [n,m] of Object.entries(custom)){
+    const b=BASE[n],mp=m.price>0?[{variant:'Normal',rarity:m.rarity||b?.rarity||'-',jp_name:'',price_jpy:m.price,stock:0,url:'',manual:true}]:[];
+    const hasReal=!!b&&b.prices.some(p=>!p.manual);
+    if(!b)DB[n]={number:n,name:m.name||n,type:m.type||'CHARACTER',color:m.color||[],cost:m.cost??null,power:m.power??null,life:null,counter:null,rarity:m.rarity||'-',set:m.set||n.split('-')[0],image:'',prices:mp,custom:true};
+    else{const d={...b,prices:[...b.prices,...(hasReal?[]:mp)]};
+      if(b.jpOnly)Object.assign(d,{name:m.name||b.name,type:m.type||b.type,color:m.color?.length?m.color:b.color,cost:m.cost??b.cost,power:m.power??b.power,rarity:m.rarity||b.rarity,custom:true});
+      if(!hasReal&&mp.length)d.manualPrice=true;DB[n]=d}
+  }
+}
+function cardNotes(c){if(!c)return[];const t=[];if(!c.prices.some(p=>!p.manual))t.push('notyuyu');if(c.jpOnly&&!c.custom)t.push('noenglish');if(c.custom||c.manualPrice)t.push('manual');return t}
+const NOTE_TXT={notyuyu:'Not on Yuyu-tei',noenglish:'English details missing',manual:'Manual entry'};
+const noteTags=(c,n)=>cardNotes(c).map(k=>`<button class="tag ${k==='manual'?'':'warn'}" type="button" data-k="mtag" data-n="${esc(n||c.number)}" title="Click to add or edit details manually">${NOTE_TXT[k]}</button>`).join('');
+const shrink=async src=>{const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src});
+  const w=Math.min(220,img.width),c=document.createElement('canvas');c.width=w;c.height=Math.round(w*img.height/img.width);
+  c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.72)};
+const COLORS={Red:'#d7263d',Green:'#1b8a5a',Blue:'#2b6cb0',Purple:'#7b3fa0',Black:'#222',Yellow:'#e6b800'};
+const NUM=/([A-Z]{1,3}\d{0,2})\s*[-–—_]\s*(\d{3})/;
+const yen=n=>'¥'+Math.round(n).toLocaleString('en-US');
+const peso=n=>'₱'+Math.round(n*rate()).toLocaleString('en-US');
+const rate=()=>parseFloat($('#rate').value)||0;
+const money=n=>rate()?`${peso(n)} <span class="meta">(${yen(n)})</span>`:yen(n);
+const moneyTxt=n=>rate()?`${peso(n)} (${yen(n)})`:yen(n);
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+fetch('cards.json').then(r=>r.json()).then(d=>{BASE=d.cards;applyCustom();$('#updated').textContent='Data updated '+d.updated;render();buildSearch()})
+  .catch(()=>{$('#status').textContent='Could not load cards.json'});
+try{$('#rate').value=localStorage.getItem('opcg_rate')||''}catch(e){}
+function rateHint(){$('#rateHint').textContent=rate()?'Pesos shown first, yen in brackets.':'Type today\'s rate to see pesos.'}
+$('#rate').oninput=()=>{try{localStorage.setItem('opcg_rate',$('#rate').value);localStorage.setItem(RUKEY,String(Date.now()))}catch(e){};if(sync)scheduleSync(4000);rateHint();render();renderPending()};
+rateHint();
+const mode=()=>document.querySelector('input[name=mode]:checked').value;
+document.querySelectorAll('input[name=mode]').forEach(r=>r.onchange=()=>{$('#modeHint').textContent=mode()==='batch'
+  ?'Photo a binder page or a spread of cards, laid flat with every number visible. Slower; check each result.'
+  :'Best accuracy. Card number at the bottom-right must be visible.'});
+
+// ---------- OCR ----------
+async function getWorker(){
+  if(worker) return worker;
+  worker=await Tesseract.createWorker('eng');
+  await worker.setParameters({tessedit_char_whitelist:'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-',tessedit_pageseg_mode:'11'});
+  return worker;
+}
+const loadImg=file=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(file)});
+function toCanvas(img,box,scale){ // box = [x,y,w,h] fractions
+  const sw=img.width*box[2], sh=img.height*box[3];
+  const c=document.createElement('canvas'); const s=Math.min(scale, 2400/Math.max(sw,sh));
+  c.width=sw*s; c.height=sh*s; const g=c.getContext('2d');
+  g.filter='grayscale(1) contrast(1.6)';
+  g.drawImage(img,img.width*box[0],img.height*box[1],sw,sh,0,0,c.width,c.height);
+  return c;
+}
+const fixText=t=>t.toUpperCase().replace(/O(?=\d{2}-)/g,'0');
+async function readNumber(file){
+  const img=await loadImg(file); const w=await getWorker(); let guess=null;
+  for(const box of [[.45,.72,.55,.28],[0,.5,1,.5],[0,0,1,1]]){
+    const {data}=await w.recognize(toCanvas(img,box,3));
+    const m=fixText(data.text).match(new RegExp(NUM.source,'g'));
+    if(m){ for(const cand of m){ const mm=cand.match(NUM); const n=mm[1]+'-'+mm[2]; if(DB[n]) return {number:n,src:img.src}; if(!guess&&KNOWN_FMT.test(n)) guess=n; } }
+  }
+  return {number:guess,src:img.src}; // null = the photo could not be read; a guess = read, but not in our data
+}
+// Batch: OCR overlapping tiles, keep word positions, de-duplicate across tile overlaps.
+async function readMany(file,onProgress){
+  const img=await loadImg(file), w=await getWorker();
+  const W=img.width,H=img.height, n=Math.max(W,H)>1400?3:2, ov=.12, found=[];
+  for(let ty=0;ty<n;ty++)for(let tx=0;tx<n;tx++){
+    onProgress(ty*n+tx+1,n*n);
+    const bx=Math.max(0,tx/n-ov/2), by=Math.max(0,ty/n-ov/2);
+    const bw=Math.min(1-bx,1/n+ov), bh=Math.min(1-by,1/n+ov);
+    const cv=toCanvas(img,[bx,by,bw,bh],3), s=cv.width/(W*bw);
+    const {data}=await w.recognize(cv);
+    const words=(data.words||[]).filter(x=>x.text&&x.text.trim());
+    for(let i=0;i<words.length;i++){
+      let t=fixText(words[i].text), bb=words[i].bbox, m=t.match(NUM);
+      if(!m&&i+1<words.length){ // number split in two words, e.g. "OP01" "-024"
+        const b2=words[i+1].bbox; if(Math.abs((b2.y0+b2.y1)-(bb.y0+bb.y1))<(bb.y1-bb.y0)){
+          t=fixText(words[i].text+words[i+1].text); m=t.match(NUM); bb={x0:bb.x0,y0:Math.min(bb.y0,b2.y0),x1:b2.x1,y1:Math.max(bb.y1,b2.y1)}; }}
+      if(!m) continue; const num=m[1]+'-'+m[2]; if(!DB[num]&&!KNOWN_FMT.test(num)) continue;
+      found.push({number:num,x0:bx*W+bb.x0/s,x1:bx*W+bb.x1/s,y0:by*H+bb.y0/s,y1:by*H+bb.y1/s});
+    }
+  }
+  const out=[];
+  for(const f of found){
+    const cx=(f.x0+f.x1)/2, cy=(f.y0+f.y1)/2;
+    if(out.some(o=>o.number===f.number&&Math.abs(o.cx-cx)<W*.04&&Math.abs(o.cy-cy)<H*.04)) continue;
+    out.push({...f,cx,cy});
+  }
+  out.sort((a,b)=>Math.round(a.cy/(H*.15))-Math.round(b.cy/(H*.15))||a.cx-b.cx); // reading order
+  return out.map(f=>({number:f.number,src:thumb(img,f)}));
+}
+function thumb(img,f){ // the number sits bottom-right on the card: crop up and to the left of it (approximate)
+  const cw=(f.x1-f.x0)/.17, ch=cw*1.4;
+  const x=Math.max(0,f.x1+cw*.04-cw), y=Math.max(0,f.y1+ch*.03-ch);
+  const sw=Math.min(cw,img.width-x), sh=Math.min(ch,img.height-y);
+  const c=document.createElement('canvas'); c.width=140; c.height=Math.round(140*sh/sw)||196;
+  c.getContext('2d').drawImage(img,x,y,sw,sh,0,0,c.width,c.height); return c.toDataURL('image/jpeg',.7);
+}
+
+// ---------- pending review ----------
+let pending=[];
+function cardFor(n){return DB[(n||'').toUpperCase().trim()]}
+function bestVariantIndex(card){
+  const p=card.prices; if(!p.length) return 0;
+  let best=-1;p.forEach((x,i)=>{if(x.variant==='Normal'&&(best<0||x.price_jpy<p[best].price_jpy))best=i});
+  return best<0?0:best;
+}
+function addPending(number,src,isPhoto=false){const c=cardFor(number);pending.push({number,src,isPhoto,variant:c?bestVariantIndex(c):0,qty:1})}
+function commit(p){
+  const card=cardFor(p.number); if(!card) return false;
+  const v=card.prices[p.variant]?.variant||'Normal';
+  const photo=p.isPhoto?p.src:undefined;
+  const ex=coll.find(x=>x.number===card.number&&x.variant===v&&!x.sold&&statusKey(x)==='own');
+  if(ex){ex.qty+=p.qty;if(!ex.photo&&photo)ex.photo=photo}
+  else coll.push({id:uid(),number:card.number,variant:v,qty:p.qty,sold:false,...(photo?{photo}:{})});
+  return true;
+}
+function renderPending(){
+  $('#pending').hidden=!pending.length;
+  $('#pendingList').innerHTML='';
+  pending.forEach((p,idx)=>{
+    const card=cardFor(p.number),notes=cardNotes(card);
+    const el=document.createElement('div');el.className='item';
+    let banner='';
+    if(!card&&p.number)banner=`<div class="note"><b>Not found in the card data or on Yuyu-tei</b><span>${esc(p.number)} isn't listed anywhere the app looks. If the scan misread a digit, fix the number above. If the card is real (very new, or a special print), add its details yourself.</span><br><button class="btn alt mini" data-k="man" style="margin-top:6px">Add details manually</button></div>`;
+    else if(!card)banner=`<div class="note photo"><b>Couldn't read the card number from this photo</b><span>This is a photo problem, not a Yuyu-tei problem. Retake it flat, in even light, with the number at the bottom-right sharp, or type the number above.</span></div>`;
+    else if(notes.includes('noenglish'))banner=`<div class="note"><b>On Yuyu-tei, but English details are missing</b><span>The name shown is Japanese and cost, power and color are blank. You can fill them in.</span><br><button class="btn alt mini" data-k="man" style="margin-top:6px">Add details manually</button></div>`;
+    else if(notes.includes('notyuyu'))banner=`<div class="note"><b>Not listed on Yuyu-tei</b><span>${notes.includes('manual')?'You added a reference price manually.':'There is no market price for this card. You can still add it, and enter a reference price if you like.'}</span><br><button class="btn alt mini" data-k="man" style="margin-top:6px">${notes.includes('manual')?'Edit manual price':'Add a price manually'}</button></div>`;
+    const cols=card?(card.color.length?card.color.map(c=>`<span class="dot" style="background:${COLORS[c]||'#999'}"></span>${esc(c)}`).join(' '):'–'):'';
+    el.innerHTML=`<img src="${esc(p.src||card?.image||'')}" alt="">
+    <div>
+      <div class="row"><input type="text" value="${esc(p.number)}" size="11" placeholder="OP01-024" data-k="num" aria-label="Card number">
+        ${card?`<span class="name">${esc(card.name)}</span>${notes.includes('manual')?'<span class="tag">Manual entry</span>':''}`:''}</div>
+      ${card?`<div class="meta">${esc(card.type?card.type[0]+card.type.slice(1).toLowerCase():'–')} · ${cols} · Cost ${card.cost??'–'} · Power ${card.power??'–'} · ${esc(card.rarity)}</div>`:''}
+      ${banner}
+      ${card?`<div class="row" style="margin-top:6px"><select data-k="var" aria-label="Version">${card.prices.map((x,i)=>`<option value="${i}" ${i==p.variant?'selected':''}>${esc(x.variant)} (${esc(x.rarity)}) – ${yen(x.price_jpy)}${x.manual?' · manual':(x.stock?'':' · out of stock')}</option>`).join('')||'<option value="0">No price</option>'}</select>
+        Qty <input type="number" min="1" value="${p.qty}" style="width:60px" data-k="qty">
+        <button class="btn" data-k="ok">Add</button><button class="btn alt" data-k="no">Discard</button></div>`
+      :`<div class="row" style="margin-top:6px"><button class="btn alt" data-k="no">Discard</button></div>`}
+    </div>`;
+    el.querySelector('[data-k=num]').onchange=e=>{p.number=e.target.value.toUpperCase().trim();const c=cardFor(p.number);p.variant=c?bestVariantIndex(c):0;renderPending()};
+    const v=el.querySelector('[data-k=var]'); if(v) v.onchange=e=>p.variant=+e.target.value;
+    const q=el.querySelector('[data-k=qty]'); if(q) q.onchange=e=>p.qty=Math.max(1,+e.target.value||1);
+    const man=el.querySelector('[data-k=man]'); if(man) man.onclick=()=>openManual(p.number);
+    const ok=el.querySelector('[data-k=ok]'); if(ok) ok.onclick=()=>{commit(p);pending.splice(idx,1);save();render();renderPending()};
+    el.querySelector('[data-k=no]').onclick=()=>{pending.splice(idx,1);renderPending()};
+    $('#pendingList').appendChild(el);
+  });
+}
+$('#addAll').onclick=()=>{const keep=[];pending.forEach(p=>{if(!commit(p))keep.push(p)});pending=keep;save();render();renderPending()};
+
+// ---------- inputs ----------
+async function handleFiles(files){
+  for(const f of files){
+    try{
+      if(!Object.keys(DB).length) throw new Error('db');
+      if(mode()==='batch'){
+        $('#status').textContent=`Scanning ${f.name}…`;
+        const res=await readMany(f,(i,n)=>$('#status').textContent=`Scanning ${f.name}: section ${i}/${n}…`);
+        if(!res.length) addPending(null,await shrink(URL.createObjectURL(f)),true);
+        res.forEach(r=>addPending(r.number,r.src,true));
+        $('#status').textContent=`Found ${res.length} card${res.length===1?'':'s'} in ${f.name}. Check the list for misses.`;
+      }else{
+        $('#status').textContent=`Reading ${f.name}…`;
+        const r=await readNumber(f); addPending(r.number,await shrink(r.src),true); $('#status').textContent='';
+      }
+    }catch(e){console.warn(e);try{addPending(null,await shrink(URL.createObjectURL(f)),true)}catch(_){addPending(null,'')}}
+    renderPending();
+  }
+}
+$('#file').onchange=e=>{handleFiles([...e.target.files]);e.target.value=''};
+const drop=$('#drop');drop.ondragover=e=>e.preventDefault();drop.ondrop=e=>{e.preventDefault();handleFiles([...e.dataTransfer.files])};
+$('#addManual').onclick=()=>{const n=$('#manual').value.toUpperCase().trim();if(!n)return;addPending(n,cardFor(n)?.image||'');$('#manual').value='';renderPending()};
+
+// ---------- collection ----------
+const priceOf=x=>{const c=DB[x.number];return c?.prices.filter(p=>p.variant===x.variant).sort((a,b)=>a.price_jpy-b.price_jpy)[0]};
+const unitJpy=x=>x.sold&&x.soldJpy!=null?x.soldJpy:(priceOf(x)?.price_jpy||0);
+// ----- my selling price vs market -----
+const CURSYM={PHP:'₱',JPY:'¥'};
+const defCur=()=>{try{return localStorage.getItem('opcg_sellcur')||(rate()?'PHP':'JPY')}catch(e){return rate()?'PHP':'JPY'}};
+const hasSell=x=>x.sellPrice>0;
+const marketIn=(x,cur)=>{const j=unitJpy(x);return cur==='JPY'?j:(rate()?j*rate():null)};
+const sellIn=(x,cur)=>{const c=x.sellCur||'PHP';if(c===cur)return x.sellPrice;if(c==='PHP')return rate()?x.sellPrice/rate():null;return rate()?x.sellPrice*rate():null};
+const dispCur=()=>rate()?'PHP':'JPY';
+const fmtDisp=n=>CURSYM[dispCur()]+Math.round(n).toLocaleString('en-US');
+const valDisp=x=>{const cur=dispCur();const mine=hasSell(x)?sellIn(x,cur):null;return mine??marketIn(x,cur)??0};
+function diffHtml(x){if(!hasSell(x))return'';const cur=x.sellCur||'PHP',m=marketIn(x,cur);if(!m)return'';const d=x.sellPrice-m,pct=d/m*100;
+  return `<span class="${d>=0?'up':'down'}">${d>=0?'▲ +':'▼ −'}${CURSYM[cur]}${Math.abs(Math.round(d)).toLocaleString('en-US')} (${d>=0?'+':'−'}${Math.abs(pct).toFixed(0)}%)</span> vs Yuyu-tei`}
+function applyStatus(x,st,date){
+  if(st==='sold'){if(!x.sold)x.soldJpy=priceOf(x)?.price_jpy??null;x.sold=true;delete x.avail;x.soldDate=date||x.soldDate||today()}
+  else{x.sold=false;delete x.soldDate;delete x.soldJpy;if(st==='own')delete x.avail;else x.avail=st}
+}
+function mergeDupes(){const out=[];coll.forEach(x=>{if(!x.sold){const e=out.find(y=>!y.sold&&y.number===x.number&&y.variant===x.variant&&statusKey(y)===statusKey(x));
+  if(e){e.qty+=x.qty;if(!e.photo&&x.photo)e.photo=x.photo;return}}out.push(x)});coll=out}
+function setStatus(i,st){
+  const x=coll[i];if(statusKey(x)===st)return;
+  let n=x.qty;
+  if(x.qty>1){const a=prompt(`How many of these ${x.qty} copies should be marked "${STATUS[st]}"?`,String(x.qty));if(a===null){render();return}
+    n=Math.min(x.qty,Math.max(1,parseInt(a,10)||0));if(!n){render();return}}
+  if(n<x.qty){const c={...x,id:uid(),qty:n};applyStatus(c,st);x.qty-=n;coll.splice(i+1,0,c)}else applyStatus(x,st);
+  mergeDupes();save();render();
+}
+let selected=new Set(),visibleIds=[];
+function nameOf(x){const c=DB[x.number];return c?c.name:x.number}
+function updateBulk(){
+  for(const id of [...selected])if(!coll.some(x=>x.id===id))selected.delete(id);
+  const n=selected.size,cards=coll.filter(x=>selected.has(x.id)).reduce((a,x)=>a+x.qty,0);
+  $('#bulkBar').hidden=!n;$('#bulkN').textContent=`${n} selected (${cards} card${cards===1?'':'s'})`;
+  const sa=$('#selAll');sa.checked=visibleIds.length>0&&visibleIds.every(id=>selected.has(id));sa.indeterminate=!sa.checked&&visibleIds.some(id=>selected.has(id))}
+function deleteRow(i){
+  const x=coll[i];if(!x)return;let n=x.qty;
+  if(x.qty>1){const a=prompt(`Delete how many of these ${x.qty} copies of ${nameOf(x)}?\n(Enter ${x.qty} to delete the whole entry.)`,String(x.qty));if(a===null)return;
+    n=Math.min(x.qty,Math.max(0,parseInt(a,10)||0));if(!n)return}
+  if(n<x.qty){const before=x.qty;x.qty-=n;save();render();
+    toast(`Deleted ${n} of ${before} - ${nameOf(x)}`,()=>{const y=coll.find(r=>r.id===x.id);if(y){y.qty+=n;save();render()}});return}
+  const[removed]=coll.splice(i,1);selected.delete(removed.id);save();render();
+  toast(`Deleted ${nameOf(removed)}`,()=>{coll.splice(Math.min(i,coll.length),0,removed);save();render()})}
+function render(){
+  const tb=$('#rows');tb.innerHTML='';visibleIds=[];let own=0,ownN=0,sold=0,soldN=0,saleN=0,resN=0,ask=0,mineN=0,soldRev=0,soldMine=0;const f=$('#filter').value;
+  coll.forEach((x,i)=>{
+    const c=DB[x.number], pr=priceOf(x), u=unitJpy(x), line=u*x.qty;
+    if(x.sold){sold+=line;soldN+=x.qty}else{own+=line;ownN+=x.qty;if(x.avail==='sale')saleN+=x.qty;if(x.avail==='reserved')resN+=x.qty}
+    const vd=valDisp(x)*x.qty;if(x.sold){soldRev+=vd;if(hasSell(x))soldMine+=x.qty}else{ask+=vd;if(hasSell(x))mineN+=x.qty}
+    if(!matchFilter(x,f)) return;
+    visibleIds.push(x.id);
+    const tr=document.createElement('tr');if(x.sold)tr.className='sold';
+    const pic=x.photo||c?.image||'';
+    tr.innerHTML=`<td class="keep"><input type="checkbox" data-k="sel" aria-label="Select this entry" ${selected.has(x.id)?'checked':''}></td><td><div class="cardcell">${pic?`<img class="thumb" data-k="img" src="${esc(pic)}" alt="${esc(c?.name||x.number)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">`:''}<div><b>${c?esc(c.name):'?'}</b><br><span class="meta">${esc(x.number)}${c?' · '+esc(c.rarity):''}</span><br>${noteTags(c,x.number)}${x.photo?'':`<br><button class="btn alt mini" data-k="ph">+ my photo</button>`}</div></div></td>
+      <td>${c?esc(c.color.join('/')):''}</td><td>${c?.cost??'–'}</td><td>${c?.power??'–'}</td><td>${esc(x.variant)}</td>
+      <td><input type="number" min="1" value="${x.qty}" style="width:56px" data-k="qty" aria-label="Quantity"></td>
+      <td class="keep"><select data-k="st" aria-label="Status">${Object.entries(STATUS).map(([k,l])=>`<option value="${k}" ${statusKey(x)===k?'selected':''}>${l}</option>`).join('')}</select>
+        ${x.sold?`<br><label class="meta">Sold on <input type="date" value="${esc(x.soldDate||today())}" data-k="date"></label>`:''}</td>
+      <td class="keep"><div class="row" style="flex-wrap:nowrap;gap:4px"><input type="number" min="0" step="any" data-k="sp" style="width:82px" placeholder="${x.sold?'Sold for':'My price'}" value="${x.sellPrice>0?x.sellPrice:''}" aria-label="My selling price per card">
+        <select data-k="sc" aria-label="Currency of my price"><option value="PHP" ${(x.sellCur||defCur())==='PHP'?'selected':''}>₱</option><option value="JPY" ${(x.sellCur||defCur())==='JPY'?'selected':''}>¥</option></select></div>
+        <div class="meta" data-k="diff">${diffHtml(x)}</div><button class="btn alt mini" data-k="fill" type="button" title="Fill with the Yuyu-tei price, rounded to the nearest 10">≈ market</button></td>
+      <td class="price">${(pr||x.sold)?money(u):'n/a'}${x.qty>1?`<br><span class="meta">× ${x.qty} = ${moneyTxt(line)}</span>`:''}${x.sold?'<br><span class="meta">price when sold</span>':''}</td>
+      <td class="keep"><button class="btn alt mini danger" data-k="del" type="button" title="Delete this entry">Delete</button></td>`;
+    const im=tr.querySelector('[data-k=img]'); if(im) im.onclick=()=>openLb(x);
+    const ph=tr.querySelector('[data-k=ph]'); if(ph) ph.onclick=()=>pickPhoto(x);
+    tr.querySelectorAll('[data-k=mtag]').forEach(b=>b.onclick=()=>openManual(b.dataset.n));
+    const sp=tr.querySelector('[data-k=sp]'),sc=tr.querySelector('[data-k=sc]');
+    const setSell=()=>{const v=parseFloat(sp.value);if(v>0){x.sellPrice=v;x.sellCur=sc.value;try{localStorage.setItem('opcg_sellcur',sc.value)}catch(_){}}else{delete x.sellPrice;delete x.sellCur}save();render()};
+    sp.onchange=setSell;sc.onchange=()=>{if(x.sellPrice>0)setSell();else{try{localStorage.setItem('opcg_sellcur',sc.value)}catch(_){}}};
+    tr.querySelector('[data-k=fill]').onclick=()=>{const cur=sc.value,m=marketIn(x,cur);if(m==null){alert('Type a conversion rate at the top first (1 ¥ = ₱ ?), so the yen price can be shown in pesos.');return}
+      if(!m){alert('There is no Yuyu-tei or manual price to copy for this card.');return}x.sellPrice=Math.max(10,Math.round(m/10)*10);x.sellCur=cur;save();render()};
+    tr.querySelector('[data-k=qty]').onchange=e=>{x.qty=Math.max(1,+e.target.value||1);save();render()};
+    tr.querySelector('[data-k=st]').onchange=e=>setStatus(i,e.target.value);
+    const d=tr.querySelector('[data-k=date]'); if(d) d.onchange=e=>{x.soldDate=e.target.value;save()};
+    tr.querySelector('[data-k=del]').onclick=()=>deleteRow(i);
+    tr.querySelector('[data-k=sel]').onchange=e=>{if(e.target.checked)selected.add(x.id);else selected.delete(x.id);updateBulk()};
+    tb.appendChild(tr);
+  });
+  $('#total').innerHTML=money(own);$('#count').textContent=`${ownN} card${ownN===1?'':'s'}`+(saleN?` · ${saleN} for sale`:'')+(resN?` · ${resN} reserved`:'');
+  $('#soldTotal').textContent=fmtDisp(soldRev);$('#soldCount').textContent=`${soldN} card${soldN===1?'':'s'}`+(soldN?` · ${soldMine} at your price`:'');
+  $('#askTotal').textContent=fmtDisp(ask);$('#askCount').textContent=`${mineN} of ${ownN} card${ownN===1?'':'s'} priced by you`+(rate()?'':' (enter a rate to include ₱ prices)');
+  updateBulk();
+  if(HAY.size)runSearch(false);
+}
+$('#filter').onchange=render;
+$('#selAll').onchange=e=>{if(e.target.checked)visibleIds.forEach(id=>selected.add(id));else visibleIds.forEach(id=>selected.delete(id));render()};
+$('#bulkClear').onclick=()=>{selected.clear();render()};
+$('#bulkDel').onclick=async()=>{
+  const rows=coll.map((x,i)=>({x,i})).filter(o=>selected.has(o.x.id));if(!rows.length)return;
+  const cards=rows.reduce((a,o)=>a+o.x.qty,0),w=rows.length===1?'entry':'entries';
+  if(!confirm(`Delete ${rows.length} selected ${w} (${cards} card${cards===1?'':'s'})?\n\nYou can undo right after, and a safety copy is kept under Recover.`))return;
+  await snapshot(`Before deleting ${rows.length} ${w}`);
+  const ids=new Set(rows.map(o=>o.x.id));coll=coll.filter(x=>!ids.has(x.id));selected.clear();save();render();
+  toast(`Deleted ${rows.length} ${w}`,()=>{rows.forEach(o=>coll.splice(Math.min(o.i,coll.length),0,o.x));save();render()})};
+// ---------- manual details ----------
+$('#mdColors').innerHTML=Object.keys(COLORS).map(k=>`<label class="row" style="gap:4px;color:var(--ink);font-size:13px"><input type="checkbox" value="${k}"><span class="dot" style="background:${COLORS[k]}"></span>${k}</label>`).join('');
+function openManual(num){
+  num=(num||'').toUpperCase().trim();
+  if(!/^[A-Z]{1,3}\d{0,2}-\d{3}$/.test(num)){alert('Type the card number first (like OP05-119).');return}
+  const b=BASE[num],m=custom[num]||{},c=DB[num],locked=!!b&&!b.jpOnly;
+  $('#mdNum').value=num;
+  $('#mdTitle').textContent=locked?'Add a price manually':(b?'Add English details manually':'Add card details manually');
+  $('#mdWhy').textContent=locked?'This card is in the official English data but not on Yuyu-tei, so there is no market price. Enter a reference price if you want it counted in your totals.'
+    :b?'Yuyu-tei lists this card but the English data does not have it yet. Fill in what you can read on the card.':'This number is not in the English data or on Yuyu-tei. Enter what is printed on the card.';
+  const src=locked?c:{...c,...m};
+  $('#mdName').value=(locked||m.name)?(src?.name||''):(b?'':'');
+  $('#mdType').value=src?.type||m.type||'CHARACTER';$('#mdRar').value=src?.rarity||'-';
+  $('#mdCost').value=src?.cost??'';$('#mdPower').value=src?.power??'';
+  document.querySelectorAll('#mdColors input').forEach(i=>{i.checked=(src?.color||[]).includes(i.value);i.disabled=locked});
+  ['#mdName','#mdType','#mdRar','#mdCost','#mdPower'].forEach(id=>$(id).disabled=locked);
+  $('#mdPrice').value=m.price||'';$('#mdDel').hidden=!custom[num];
+  $('#md').showModal();
+}
+$('#mdCancel').onclick=()=>$('#md').close();
+$('#mdSave').onclick=()=>{
+  const n=$('#mdNum').value,b=BASE[n],locked=!!b&&!b.jpOnly,name=$('#mdName').value.trim();
+  if(!locked&&!name){alert('Please enter the card name.');$('#mdName').focus();return}
+  const num=id=>$(id).value===''?null:+$(id).value,colors=[...document.querySelectorAll('#mdColors input:checked')].map(i=>i.value).slice(0,2);
+  const price=Math.max(0,+$('#mdPrice').value||0);
+  if(locked&&!price){delete custom[n]}
+  else custom[n]=locked?{price,set:b.set}:{name,type:$('#mdType').value,rarity:$('#mdRar').value,cost:num('#mdCost'),power:num('#mdPower'),color:colors,price,set:b?.set||n.split('-')[0]};
+  afterCustomChange(n);$('#md').close();
+};
+$('#mdDel').onclick=()=>{const n=$('#mdNum').value;if(coll.some(x=>x.number===n)&&!BASE[n]&&!confirm('Cards in your collection use these details. Removing them makes those cards show as unknown. Continue?'))return;
+  delete custom[n];afterCustomChange(n);$('#md').close()};
+function afterCustomChange(n){saveCustom();applyCustom();
+  if(HAY.size&&DB[n])HAY.set(n,[DB[n].name,n,DB[n].set,DB[n].type,...(DB[n].color||[]),DB[n].rarity,...(DB[n].prices||[]).map(p=>p.jp_name)].join(' ').toLowerCase());
+  pending.forEach(p=>{if(p.number===n){const c=cardFor(n);p.variant=c?bestVariantIndex(c):0}});
+  render();renderPending()}
+// ---------- database search ----------
+let SHOWN=24, HAY=new Map();
+const lowest=c=>{const p=c.prices||[];if(!p.length)return null;const n=p.filter(x=>x.variant==='Normal');return Math.min(...(n.length?n:p).map(x=>x.price_jpy))};
+function buildSearch(){
+  const cs=Object.values(DB), uniq=f=>[...new Set(cs.flatMap(f).filter(v=>v!==null&&v!==undefined&&v!==''))];
+  const fill=(id,vals,fmt)=>{const el=$(id),cur=el.value;vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=fmt?fmt(v):v;el.appendChild(o)});el.value=cur};
+  fill('#fColor',uniq(c=>c.color||[]).sort());
+  fill('#fType',uniq(c=>[c.type]).sort(),v=>v[0]+v.slice(1).toLowerCase());
+  fill('#fSet',uniq(c=>[c.set]).sort());
+  const ro=['L','C','UC','R','SR','SEC','SP','TR','P'];fill('#fRarity',uniq(c=>[c.rarity]).sort((a,b)=>(ro.indexOf(a)+99)%99-(ro.indexOf(b)+99)%99||a.localeCompare(b)));
+  fill('#fCost',uniq(c=>[c.cost]).sort((a,b)=>a-b),v=>'Cost '+v);
+  cs.forEach(c=>HAY.set(c.number,[c.name,c.number,c.set,c.type,...(c.color||[]),c.rarity,...(c.prices||[]).map(p=>p.jp_name)].join(' ').toLowerCase()));
+  runSearch();
+}
+function matches(){
+  const terms=$('#q').value.toLowerCase().split(/\s+/).filter(Boolean),f={color:$('#fColor').value,type:$('#fType').value,set:$('#fSet').value,rarity:$('#fRarity').value,cost:$('#fCost').value};
+  let r=Object.values(DB).filter(c=>terms.every(t=>HAY.get(c.number)?.includes(t))
+    &&(!f.color||(c.color||[]).includes(f.color))&&(!f.type||c.type===f.type)&&(!f.set||c.set===f.set)&&(!f.rarity||c.rarity===f.rarity)&&(!f.cost||String(c.cost)===f.cost));
+  const so=$('#fSort').value, pv=c=>lowest(c);
+  if(so==='hi')r.sort((a,b)=>(pv(b)??-1)-(pv(a)??-1));else if(so==='lo')r.sort((a,b)=>(pv(a)??1e12)-(pv(b)??1e12));
+  else if(so==='name')r.sort((a,b)=>a.name.localeCompare(b.name));else r.sort((a,b)=>a.number.localeCompare(b.number));
+  return r;
+}
+function runSearch(reset=true){
+  if(reset)SHOWN=24;
+  const r=matches(),box=$('#results');box.innerHTML='';
+  const own={};coll.forEach(x=>{if(!x.sold)own[x.number]=(own[x.number]||0)+x.qty});
+  $('#sCount').textContent=`${r.length.toLocaleString('en-US')} of ${Object.keys(DB).length.toLocaleString('en-US')} cards`;
+  r.slice(0,SHOWN).forEach(c=>{
+    const p=lowest(c),el=document.createElement('div');el.className='rc';
+    const out=c.prices?.length&&c.prices.every(x=>!x.stock);
+    el.innerHTML=`<img src="${esc(c.image||'')}" alt="${esc(c.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">
+      <div style="min-width:0"><div class="name">${esc(c.name)}${own[c.number]?`<span class="badge">own ${own[c.number]}</span>`:''}</div>
+      <div class="meta">${esc(c.number)} · ${esc(c.rarity)} · ${esc(c.type?c.type[0]+c.type.slice(1).toLowerCase():'–')}</div>
+      <div class="meta">${(c.color||[]).map(k=>`<span class="dot" style="background:${COLORS[k]||'#999'}"></span>${esc(k)}`).join(' ')} · Cost ${c.cost??'–'} · Power ${c.power??'–'}</div>
+      <div class="price" style="margin:2px 0">${p==null?'<span class="meta">no price</span>':money(p)}${cardNotes(c).map(k=>`<div><span class="tag ${k==='manual'?'':'warn'}" style="cursor:default">${NOTE_TXT[k]}</span></div>`).join('')}${out?' <span class="meta">· out of stock</span>':''}</div>
+      <button class="btn mini" data-k="add">Add</button></div>`;
+    el.querySelector('img').onclick=()=>{const t=el.querySelector('img');if(t.src)window.open(t.src,'_blank','noopener')};
+    el.querySelector('[data-k=add]').onclick=()=>{addPending(c.number,c.image||'');renderPending();$('#pending').scrollIntoView({behavior:'smooth',block:'nearest'})};
+    box.appendChild(el);
+  });
+  if(!r.length)box.innerHTML='<div class="meta">No cards match. Try fewer words or reset the filters.</div>';
+  $('#more').hidden=r.length<=SHOWN;
+}
+let qt;['#q'].forEach(id=>$(id).oninput=()=>{clearTimeout(qt);qt=setTimeout(runSearch,150)});
+['#fColor','#fType','#fSet','#fRarity','#fCost','#fSort'].forEach(id=>$(id).onchange=()=>runSearch());
+$('#more').onclick=()=>{SHOWN+=24;runSearch(false)};
+$('#qReset').onclick=()=>{$('#q').value='';['#fColor','#fType','#fSet','#fRarity','#fCost'].forEach(id=>$(id).value='');$('#fSort').value='num';runSearch()};
+function pickPhoto(x){const i=document.createElement('input');i.type='file';i.accept='image/*';
+  i.onchange=async()=>{const f=i.files[0];if(!f)return;try{x.photo=await shrink(URL.createObjectURL(f));save();render();if(lbCur===x)openLb(x)}catch(e){alert('Could not read that image.')}};i.click()}
+let lbCur=null;
+function openLb(x){lbCur=x;const c=DB[x.number];$('#lbTitle').textContent=`${c?c.name:'?'} · ${x.number} · ${x.variant}`;
+  $('#lbFigs').innerHTML=(x.photo?`<figure><img src="${esc(x.photo)}" alt="Your photo"><figcaption class="meta">Your photo</figcaption></figure>`:'')
+   +(c?.image?`<figure><img src="${esc(c.image)}" alt="Official art" referrerpolicy="no-referrer" onerror="this.parentNode.style.display='none'"><figcaption class="meta">Official English art (may differ from your version)</figcaption></figure>`:'');
+  $('#lbReplace').textContent=x.photo?'Replace my photo':'Add my photo';$('#lbRemove').hidden=!x.photo;
+  if(!$('#lb').open)$('#lb').showModal()}
+$('#lbClose').onclick=()=>$('#lb').close();
+$('#lb').onclick=e=>{if(e.target.id==='lb')e.target.close()};
+$('#lbReplace').onclick=()=>pickPhoto(lbCur);
+$('#lbRemove').onclick=()=>{delete lbCur.photo;save();render();$('#lb').close()};
+// ---------- exports (CSV / Excel / PDF) ----------
+const exSet=t=>$('#exStatus').textContent=t;
+function exportList(){const f=$('#filter').value;return coll.filter(x=>matchFilter(x,f))
+  .map(x=>{const c=DB[x.number]||{},pr=priceOf(x),u=unitJpy(x);return{x,c,pr,u,line:u*x.qty}})}
+const fname=ext=>`opcg-collection-${today()}.${ext}`;
+function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+const LIBS={xlsx:'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+  pdf:'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+  table:'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'};
+const loadedJs={};
+const loadJs=src=>loadedJs[src]||(loadedJs[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;
+  s.onerror=()=>{delete loadedJs[src];rej(new Error('Could not load the export tool. Check your internet connection and try again.'))};document.head.appendChild(s)}));
+const loadImage=(src,cors)=>new Promise(res=>{const i=new Image();if(cors)i.crossOrigin='anonymous';const t=setTimeout(()=>res(null),8000);
+  i.onload=()=>{clearTimeout(t);res(i)};i.onerror=()=>{clearTimeout(t);res(null)};i.src=src});
+const imgCache=new Map();
+async function imageFor(x){ // -> {data,w,h} or null.  Your own photo first; official art only if the site allows it.
+  if(x.photo){const i=await loadImage(x.photo,false);return i?{data:x.photo,w:i.naturalWidth,h:i.naturalHeight,own:true}:null}
+  const u=DB[x.number]?.image;if(!u)return null;if(imgCache.has(u))return imgCache.get(u);
+  const i=await loadImage(u,true);let r=null;
+  if(i){try{const w=Math.min(140,i.naturalWidth),c=document.createElement('canvas');c.width=w;c.height=Math.round(w*i.naturalHeight/i.naturalWidth);
+    c.getContext('2d').drawImage(i,0,0,c.width,c.height);r={data:c.toDataURL('image/jpeg',.75),w:c.width,h:c.height,own:false}}catch(e){r=null}}
+  imgCache.set(u,r);return r}
+async function collectImages(list,label){const out=new Array(list.length);let done=0,idx=0;
+  const run=async()=>{while(idx<list.length){const k=idx++;out[k]=await imageFor(list[k].x);exSet(`${label}: preparing images ${++done}/${list.length}…`)}};
+  await Promise.all([run(),run(),run(),run(),run(),run()]);return out}
+const fit=(im,bw,bh)=>{const k=Math.min(bw/im.w,bh/im.h);return{w:im.w*k,h:im.h*k}};
+const viewLabel=()=>({all:'All cards',unsold:'Not sold',own:'In collection',sale:'For sale',reserved:'Reserved',sold:'Sold'}[$('#filter').value]);
+const imgNote=imgs=>{const n=imgs.filter(i=>!i).length;return n?` ${n} card${n>1?'s have':' has'} no picture (add "+ my photo" to fix).`:''};
+
+$('#csv').onclick=()=>{
+  const list=exportList();if(!list.length){alert('Nothing to export in this view.');return}
+  const q=v=>`"${String(v??'').replace(/"/g,'""')}"`,r=rate();
+  const rows=[['Number','Name','Type','Color','Cost','Power','Rarity','Version','Qty','Status','Date sold','Unit price JPY','Total JPY',...(r?['Rate PHP per JPY','Unit price PHP','Total PHP']:[]),'My price','My currency','Price source','Yuyu-tei URL','Official image URL','Image (Google Sheets / Excel 365)','My photo saved','ID']];
+  list.forEach(({x,c,pr,u})=>rows.push([x.number,c.name,c.type,(c.color||[]).join('/'),c.cost,c.power,c.rarity,x.variant,x.qty,statusLabel(x),x.soldDate||'',u||'',u*x.qty,
+    ...(r?[r,Math.round(u*r),Math.round(u*r*x.qty)]:[]),hasSell(x)?x.sellPrice:'',hasSell(x)?(x.sellCur||'PHP'):'',pr?(pr.manual?'Manual':'Yuyu-tei'):'None',pr?.url??'',c.image??'',c.image?`=IMAGE("${c.image}")`:'',x.photo?'yes':'no',x.id]));
+  download(new Blob(['﻿'+rows.map(r=>r.map(q).join(',')).join('\n')],{type:'text/csv'}),fname('csv'));
+  exSet('CSV saved. It has no pictures (use Excel or PDF for those). Edit Status / Date sold / Qty and use Import to update the app.');
+};
+
+$('#xlsx').onclick=async()=>{
+  const list=exportList();if(!list.length){alert('Nothing to export in this view.');return}
+  try{
+    exSet('Loading Excel tools…');await loadJs(LIBS.xlsx);
+    const imgs=await collectImages(list,'Excel'),r=rate();
+    const wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Collection',{views:[{state:'frozen',ySplit:1}]}),sm=wb.addWorksheet('Summary');
+    const cols=[['Photo',13],['Number',11],['Name',28],['Type',11],['Color',12],['Cost',6],['Power',8],['Rarity',8],['Version',13],['Qty',6],['Status',14],['Date sold',12],['Unit price ¥',13],['Total ¥',12]];
+    if(r)cols.push(['Unit price ₱',13],['Total ₱',12]);
+    cols.push(['My price',11],['My currency',10]);
+    if(r)cols.push(['Total at my price ₱',15]);
+    cols.push(['Price source',12],['Yuyu-tei link',15],['Official image URL',30],['ID (do not edit)',14]);
+    const CI=name=>String.fromCharCode(65+cols.findIndex(k=>k[0]===name)),PC=CI('My price'),CC=CI('My currency');
+    const mineTot=(x,line)=>Math.round(hasSell(x)?(x.sellCur==='JPY'?x.sellPrice*r*x.qty:x.sellPrice*x.qty):line*r);
+    ws.columns=cols.map(([header,width])=>({header,width}));
+    const h=ws.getRow(1);h.height=22;h.font={bold:true,color:{argb:'FFFFFFFF'}};h.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1A2238'}};h.alignment={vertical:'middle'};
+    list.forEach(({x,c,pr,u,line},i)=>{
+      const n=i+2,cells=['',x.number,c.name||'',(c.type||'').toLowerCase(),(c.color||[]).join('/'),c.cost??'',c.power?+c.power:'',c.rarity||'',x.variant,x.qty,statusLabel(x),x.soldDate||'',u||0,{formula:`J${n}*M${n}`,result:line}];
+      if(r)cells.push({formula:`ROUND(M${n}*Summary!$B$1,0)`,result:Math.round(u*r)},{formula:`ROUND(N${n}*Summary!$B$1,0)`,result:Math.round(line*r)});
+      cells.push(hasSell(x)?x.sellPrice:'',hasSell(x)?(x.sellCur||'PHP'):'');
+      if(r)cells.push({formula:`IF(${PC}${n}="",ROUND(N${n}*Summary!$B$1,0),IF(${CC}${n}="JPY",ROUND(${PC}${n}*J${n}*Summary!$B$1,0),${PC}${n}*J${n}))`,result:mineTot(x,line)});
+      cells.push(pr?(pr.manual?'Manual':'Yuyu-tei'):'None');
+      cells.push(pr?.url?{text:'Yuyu-tei',hyperlink:pr.url}:'',c.image||'',x.id);
+      const row=ws.addRow(cells);row.height=74;row.alignment={vertical:'middle'};row.getCell(3).font={bold:true};row.getCell(11).dataValidation={type:'list',allowBlank:false,formulae:['"In collection,For sale,Reserved,Sold"']};row.getCell(cols.findIndex(k=>k[0]==='My currency')+1).dataValidation={type:'list',allowBlank:true,formulae:['"PHP,JPY"']};
+      if(x.sold)row.font={color:{argb:'FF888888'}};
+      const im=imgs[i];if(im){const f=fit(im,86,92);const id=wb.addImage({base64:im.data,extension:'jpeg'});
+        ws.addImage(id,{tl:{col:.06,row:i+1+.05},ext:{width:f.w,height:f.h}})}
+    });
+    ws.getColumn(13).numFmt='#,##0';ws.getColumn(14).numFmt='#,##0';if(r){ws.getColumn(15).numFmt='#,##0';ws.getColumn(16).numFmt='#,##0'}
+    ws.autoFilter={from:'A1',to:{row:list.length+1,column:cols.length}};
+    const own=list.filter(l=>!l.x.sold),sold=list.filter(l=>l.x.sold),sale=list.filter(l=>statusKey(l.x)==='sale'),res=list.filter(l=>statusKey(l.x)==='reserved');
+    const sum=a=>a.reduce((t,l)=>t+l.line,0),cnt=a=>a.reduce((t,l)=>t+l.x.qty,0);
+    sm.getColumn(1).width=40;sm.getColumn(2).width=16;
+    sm.addRows([['Conversion rate (₱ per ¥) - edit me',r||''],[],
+      ['Cards in hand (not sold)',{formula:'SUMIFS(Collection!J:J,Collection!K:K,"<>Sold")',result:cnt(own)}],
+      ['Value in hand (¥)',{formula:'SUMIFS(Collection!N:N,Collection!K:K,"<>Sold")',result:sum(own)}],
+      ['Value in hand (₱)',{formula:'ROUND(B4*B1,0)',result:Math.round(sum(own)*r)}],
+      ['   of which For sale (cards)',{formula:'SUMIFS(Collection!J:J,Collection!K:K,"For sale")',result:cnt(sale)}],
+      ['   of which Reserved (cards)',{formula:'SUMIFS(Collection!J:J,Collection!K:K,"Reserved")',result:cnt(res)}],[],
+      ['Cards sold',{formula:'SUMIFS(Collection!J:J,Collection!K:K,"Sold")',result:cnt(sold)}],
+      ['Sold value (¥) at price when sold',{formula:'SUMIFS(Collection!N:N,Collection!K:K,"Sold")',result:sum(sold)}],
+      ['Sold value (₱)',{formula:'ROUND(B10*B1,0)',result:Math.round(sum(sold)*r)}],
+      ['In hand at your prices (₱)',r?{formula:`SUMIFS(Collection!${CI('Total at my price ₱')}:${CI('Total at my price ₱')},Collection!K:K,"<>Sold")`,result:own.reduce((t,l)=>t+mineTot(l.x,l.line),0)}:'enter a rate, then export again'],
+      ['Sold for, at your prices (₱)',r?{formula:`SUMIFS(Collection!${CI('Total at my price ₱')}:${CI('Total at my price ₱')},Collection!K:K,"Sold")`,result:sold.reduce((t,l)=>t+mineTot(l.x,l.line),0)}:'enter a rate, then export again'],[],
+      ['Exported',today()],['View',viewLabel()],['Prices','yuyu-tei.jp selling prices (JPY)'],[],
+      ['To update statuses in the app: change Status (dropdown), Date sold (YYYY-MM-DD), Qty, My price or My currency on the Collection sheet, save, then tap Import in the app. Do not change the ID column.']]);
+    sm.getCell('A1').font={bold:true};sm.getCell('B1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF2CC'}};
+    ['B4','B5','B10','B11','B12','B13'].forEach(a=>sm.getCell(a).numFmt='#,##0');
+    if(!r){sm.getCell('A5').value+=' (enter a rate in B1)';sm.getCell('A11').value+=' (enter a rate in B1)'}
+    exSet('Building Excel file…');
+    download(new Blob([await wb.xlsx.writeBuffer()],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),fname('xlsx'));
+    exSet('Excel file saved.'+imgNote(imgs));
+  }catch(e){console.error(e);exSet('Excel export failed: '+e.message)}
+};
+
+$('#pdf').onclick=async()=>{
+  const list=exportList();if(!list.length){alert('Nothing to export in this view.');return}
+  try{
+    exSet('Loading PDF tools…');await loadJs(LIBS.pdf);await loadJs(LIBS.table);
+    const imgs=await collectImages(list,'PDF'),r=rate();
+    const doc=new window.jspdf.jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    const y=n=>'¥'+Math.round(n).toLocaleString('en-US'),p=n=>'PHP '+Math.round(n*r).toLocaleString('en-US'),m=n=>r?`${p(n)}\n(${y(n)})`:y(n);
+    const own=list.filter(l=>!l.x.sold),sold=list.filter(l=>l.x.sold),sale=list.filter(l=>statusKey(l.x)==='sale'),res=list.filter(l=>statusKey(l.x)==='reserved'),sum=a=>a.reduce((t,l)=>t+l.line,0),cnt=a=>a.reduce((t,l)=>t+l.x.qty,0);
+    doc.setFontSize(16);doc.text('OPCG Collection',10,13);doc.setFontSize(9);doc.setTextColor(90);
+    doc.text(`${viewLabel()}  |  ${today()}  |  ${r?`rate 1 JPY = ${r} PHP  |  `:''}prices: yuyu-tei.jp selling price`,10,18.5);
+    doc.setTextColor(0);doc.setFontSize(10);
+    doc.text(`In hand: ${cnt(own)} card${cnt(own)===1?'':'s'}, ${r?`${p(sum(own))} (${y(sum(own))})`:y(sum(own))} (${cnt(sale)} for sale, ${cnt(res)} reserved)      Sold: ${cnt(sold)} card${cnt(sold)===1?'':'s'}, ${r?`${p(sum(sold))} (${y(sum(sold))})`:y(sum(sold))}`,10,24.5);
+    const pdfNote=c=>cardNotes(c).map(k=>({notyuyu:'not on Yuyu-tei',noenglish:'English details missing',manual:'manual'}[k])).join(', ');
+    const myTxt=x=>{if(!hasSell(x))return'-';const cur=x.sellCur||'PHP',mk=marketIn(x,cur);let t=`${cur} ${Math.round(x.sellPrice).toLocaleString('en-US')}`;
+      if(mk)t+=`\n${x.sellPrice>=mk?'+':'-'}${Math.abs((x.sellPrice-mk)/mk*100).toFixed(0)}% vs Yuyu-tei`;return t};
+    const body=list.map(({x,c,u,line})=>['',`${c.name||'?'}\n${x.number}${c.rarity?' - '+c.rarity:''}${pdfNote(c)?'\n['+pdfNote(c)+']':''}`,(c.color||[]).join('/'),c.cost??'-',c.power??'-',x.variant,x.qty,
+      x.sold?`Sold\n${x.soldDate||''}`:statusLabel(x),myTxt(x),m(u),m(line)]);
+    doc.autoTable({startY:28,head:[['Photo','Card','Color','Cost','Power','Version','Qty','Status','My price','Yuyu-tei price','Total']],body,
+      styles:{fontSize:8,cellPadding:1.5,valign:'middle'},bodyStyles:{minCellHeight:19},headStyles:{fillColor:[26,34,56],minCellHeight:8},
+      columnStyles:{0:{cellWidth:18},1:{cellWidth:52},8:{cellWidth:28},2:{cellWidth:24},3:{cellWidth:12},4:{cellWidth:16},5:{cellWidth:24},6:{cellWidth:10},7:{cellWidth:26}},
+      margin:{left:10,right:10,bottom:12},
+      didParseCell:d=>{if(d.section==='body'&&list[d.row.index]?.x.sold)d.cell.styles.textColor=[135,135,135]},
+      didDrawCell:d=>{if(d.section==='body'&&d.column.index===0){const im=imgs[d.row.index];if(im){const f=fit(im,d.cell.width-2,d.cell.height-2);
+        doc.addImage(im.data,'JPEG',d.cell.x+(d.cell.width-f.w)/2,d.cell.y+(d.cell.height-f.h)/2,f.w,f.h)}}}});
+    const pages=doc.getNumberOfPages();for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(120);doc.text(`Page ${i} of ${pages}`,287,203,{align:'right'})}
+    doc.save(fname('pdf'));exSet('PDF saved.'+imgNote(imgs));
+  }catch(e){console.error(e);exSet('PDF export failed: '+e.message)}
+};
+// ---------- import (Excel / CSV) ----------
+function parseCSV(t){t=t.replace(/^\ufeff/,'');const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<t.length;i++){const ch=t[i];
+    if(q){if(ch==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=ch}
+    else if(ch==='"')q=true;else if(ch===','){row.push(f);f=''}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&t[i+1]==='\n')i++;row.push(f);f='';rows.push(row);row=[]}else f+=ch}
+  if(f!==''||row.length){row.push(f);rows.push(row)}return rows.filter(r=>r.some(c=>String(c).trim()!==''))}
+const cellText=v=>{if(v==null)return'';if(v instanceof Date)return v.toISOString().slice(0,10);
+  if(typeof v==='object'){if('result' in v)return cellText(v.result);if(v.richText)return v.richText.map(t=>t.text).join('');if('text' in v)return cellText(v.text);return''}return String(v)};
+function parseStatus(s){s=String(s||'').trim().toLowerCase();if(!s)return'own';
+  if(s.includes('unsold')||s.includes('not sold'))return'own';if(s.includes('sold'))return'sold';if(s.includes('reserv'))return'reserved';
+  if(s.includes('sale')||s.includes('avail'))return'sale';if(s.includes('collect')||s==='own'||s.includes('keep')||s.includes('have'))return'own';return null}
+function parseDate(v){v=String(v||'').trim();if(!v)return'';let m=v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);if(m)return`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+  const d=new Date(v);return isNaN(d)?'':d.toISOString().slice(0,10)}
+function planImport(rows){
+  const H=(rows[0]||[]).map(h=>String(h||'').trim().toLowerCase()),ci=n=>H.findIndex(h=>h===n||h.startsWith(n+' '));
+  if(ci('number')<0||ci('status')<0)throw new Error('The file needs "Number" and "Status" columns. Use a file exported from this app.');
+  const plan={upd:[],add:[],same:0,skip:0},get=(r,n)=>ci(n)<0?'':cellText(r[ci(n)]).trim();
+  for(const r of rows.slice(1)){
+    const num=get(r,'number').toUpperCase();if(!num)continue;
+    const st=parseStatus(get(r,'status')),card=DB[num];if(st===null){plan.skip++;continue}
+    const id=get(r,'id'),date=parseDate(get(r,'date sold')),ver=get(r,'version');let q=parseInt(get(r,'qty'),10);
+    let sp=null;if(ci('my price')>=0){const v=parseFloat(get(r,'my price').replace(/[^0-9.]/g,'')),cc=get(r,'my currency').toUpperCase();
+      sp={v:v>0?v:0,cur:/JPY|¥|YEN/.test(cc)?'JPY':/PHP|₱|PESO/.test(cc)?'PHP':null}}
+    const ex=id&&coll.find(x=>x.id===id);
+    if(ex){if(!(q>0))q=ex.qty;const changed=statusKey(ex)!==st||q!==ex.qty||(st==='sold'&&date&&date!==ex.soldDate)
+        ||(sp&&((sp.v||0)!==(ex.sellPrice||0)||(sp.v>0&&(sp.cur||ex.sellCur||'PHP')!==(ex.sellCur||'PHP'))));
+      if(changed)plan.upd.push({x:ex,st,date,q,sp});else plan.same++}
+    else if(card)plan.add.push({number:num,variant:card.prices.some(p=>p.variant===ver)?ver:'Normal',qty:q>0?q:1,st,date,sp});
+    else plan.skip++;
+  }
+  return plan}
+$('#importf').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{
+    if(!Object.keys(DB).length)throw new Error('Card data has not loaded yet - try again in a moment.');
+    exSet('Reading '+f.name+'…');let rows;
+    if(/\.xlsx$/i.test(f.name)){await loadJs(LIBS.xlsx);const wb=new ExcelJS.Workbook();await wb.xlsx.load(await f.arrayBuffer());
+      const ws=wb.getWorksheet('Collection')||wb.worksheets[0];rows=[];ws.eachRow(row=>{const v=[];row.eachCell({includeEmpty:true},(c,i)=>{v[i-1]=cellText(c.value)});rows.push(v)})}
+    else rows=parseCSV(await f.text());
+    const plan=planImport(rows);
+    if(!plan.upd.length&&!plan.add.length){exSet(`Nothing to change - ${plan.same} rows already match${plan.skip?`, ${plan.skip} skipped`:''}.`);return}
+    if(!confirm(`Import ${f.name}?\n\n- ${plan.upd.length} existing row(s) will be updated\n- ${plan.add.length} new row(s) will be added\n- ${plan.same} unchanged${plan.skip?`\n- ${plan.skip} row(s) skipped (unknown number or status)`:''}\n\nCards in the app that are not in the file are left alone. Tip: tap Backup first if unsure.`)){exSet('Import cancelled.');return}
+    await snapshot('Before import');
+    const applySell=(x,sp)=>{if(!sp)return;if(sp.v>0){x.sellPrice=sp.v;x.sellCur=sp.cur||x.sellCur||defCur()}else{delete x.sellPrice;delete x.sellCur}};
+    plan.upd.forEach(({x,st,date,q,sp})=>{x.qty=q;applyStatus(x,st,date);applySell(x,sp)});
+    plan.add.forEach(a=>{const x={id:uid(),number:a.number,variant:a.variant,qty:a.qty,sold:false};applyStatus(x,a.st,a.date);applySell(x,a.sp);coll.push(x)});
+    mergeDupes();save();render();exSet(`Imported: ${plan.upd.length} updated, ${plan.add.length} added.`);
+  }catch(err){console.error(err);exSet('Import failed: '+err.message)}};
+// =====================================================================
+// Data safety + cross-device sync
+// =====================================================================
+const TKEY='opcg_tomb_v1',LBKEY='opcg_lastbackup',CNKEY='opcg_changes',RUKEY='opcg_rate_u',SKEY='opcg_sync_v1';
+let tomb={};try{tomb=JSON.parse(localStorage.getItem(TKEY)||'{}')||{}}catch(e){tomb={}}
+let shadow={},cshadow={},changeCount=+localStorage.getItem(CNKEY)||0;
+let sync=null;try{sync=JSON.parse(localStorage.getItem(SKEY)||'null')}catch(e){sync=null}
+const fnv=str=>{let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0).toString(36)+str.length.toString(36)};
+const stable=o=>o&&typeof o==='object'?(Array.isArray(o)?'['+o.map(stable).join(',')+']':'{'+Object.keys(o).sort().map(k=>JSON.stringify(k)+':'+stable(o[k])).join(',')+'}'):JSON.stringify(o);
+const rowSig=x=>{const{u,...r}=x;return fnv(stable(r))};
+const cSig=m=>{const{u,...r}=m;return fnv(stable(r))};
+function initTracking(){const now=Date.now();coll.forEach(x=>{if(!x.u)x.u=now;shadow[x.id]=rowSig(x)});for(const[n,m]of Object.entries(custom)){if(!m.u)m.u=now;cshadow[n]=cSig(m)}}
+// Diff-based change tracking: stamps changed rows with a timestamp, remembers deletions (tombstones) so they sync too.
+function stamp(){const now=Date.now();let ch=0;const seen=new Set();
+  coll.forEach(x=>{seen.add(x.id);const s=rowSig(x);if(shadow[x.id]!==s){x.u=Math.max(now,(x.u||0)+1);shadow[x.id]=s;ch++}delete tomb['r:'+x.id]});
+  for(const id of Object.keys(shadow))if(!seen.has(id)){delete shadow[id];tomb['r:'+id]=now;ch++}
+  for(const[n,m]of Object.entries(custom)){const s=cSig(m);if(cshadow[n]!==s){m.u=now;cshadow[n]=s;ch++}delete tomb['c:'+n]}
+  for(const n of Object.keys(cshadow))if(!(n in custom)){delete cshadow[n];tomb['c:'+n]=now;ch++}
+  for(const k of Object.keys(tomb))if(now-tomb[k]>120*864e5)delete tomb[k];
+  if(ch){changeCount+=ch;try{localStorage.setItem(CNKEY,String(changeCount));localStorage.setItem(TKEY,JSON.stringify(tomb))}catch(e){}}
+  return ch}
+const adoptShadows=()=>{shadow={};cshadow={};coll.forEach(x=>shadow[x.id]=rowSig(x));for(const[n,m]of Object.entries(custom))cshadow[n]=cSig(m)};
+
+// ---------- snapshots (kept in IndexedDB, separate from the main data) ----------
+const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('opcg',1);r.onupgradeneeded=()=>r.result.createObjectStore('snap',{keyPath:'t'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const idbDo=(db,mode,fn)=>new Promise((res,rej)=>{const tx=db.transaction('snap',mode);const out=fn(tx.objectStore('snap'));tx.oncomplete=()=>res(out&&out.result!==undefined?out.result:undefined);tx.onerror=()=>rej(tx.error)});
+async function listSnaps(){const db=await idb();return(await idbDo(db,'readonly',s=>s.getAll())||[]).sort((a,b)=>b.t-a.t)}
+async function snapshot(reason){
+  if(!coll.length&&!Object.keys(custom).length)return;
+  try{const db=await idb();let t=Date.now();
+    await idbDo(db,'readwrite',s=>s.put({t,reason,rows:coll.length,n:coll.reduce((a,x)=>a+x.qty,0),data:JSON.stringify({app:'opcg-tracker',version:1,rate:$('#rate').value,custom,coll})}));
+    const all=await listSnaps();for(const o of all.slice(12))await idbDo(db,'readwrite',s=>s.delete(o.t));
+  }catch(e){console.warn('snapshot failed',e)}}
+function dailySnap(){if(!coll.length&&!Object.keys(custom).length)return;const d=today();try{if(localStorage.getItem('opcg_snapday')===d)return;localStorage.setItem('opcg_snapday',d)}catch(e){}snapshot('Daily safety copy')}
+function applyData(d){ // replace what is on this device with backup/snapshot data
+  coll=d.coll.filter(x=>x&&x.number&&x.qty>0);normColl();const now=Date.now();coll.forEach(x=>x.u=now);
+  if(d.custom&&typeof d.custom==='object'){custom=d.custom;Object.values(custom).forEach(m=>m.u=now);saveCustom();applyCustom()}
+  if(d.rate!==undefined&&d.rate!==null){$('#rate').value=d.rate;try{localStorage.setItem('opcg_rate',d.rate);localStorage.setItem(RUKEY,String(now))}catch(_){}}
+  rateHint();save();render();renderPending()}
+$('#recover').onclick=async()=>{
+  let list=[];try{list=await listSnaps()}catch(e){}
+  $('#rcList').innerHTML=list.length?'':'<p class="meta">No safety copies yet. One is made automatically each day you use the app, and before Import, Restore, Clear all or a sync that changes this device.</p>';
+  list.forEach(o=>{const el=document.createElement('div');el.className='row';el.style.cssText='padding:8px 0;border-top:1px solid var(--line);justify-content:space-between';
+    el.innerHTML=`<span><b>${new Date(o.t).toLocaleString()}</b><br><span class="meta">${esc(o.reason)} · ${o.n} cards in ${o.rows} rows</span></span><span class="row"><button class="btn alt mini" data-k="rs">Restore this</button><button class="btn alt mini" data-k="dl">Download</button></span>`;
+    el.querySelector('[data-k=rs]').onclick=async()=>{if(!confirm(`Replace everything on this device with the copy from ${new Date(o.t).toLocaleString()}?\n(A safety copy of the current data is made first.)`))return;
+      await snapshot('Before recovering an older copy');applyData(JSON.parse(o.data));$('#rc').close();toast('Recovered.')};
+    el.querySelector('[data-k=dl]').onclick=()=>download(new Blob([o.data],{type:'application/json'}),`opcg-safety-copy-${new Date(o.t).toISOString().slice(0,16).replace(/[:T]/g,'-')}.json`);
+    $('#rcList').appendChild(el)});
+  $('#rc').showModal()};
+$('#rcClose').onclick=()=>$('#rc').close();
+
+// ---------- toast with undo ----------
+let toastT;
+function toast(msg,undo){$('#toastMsg').textContent=msg;const b=$('#toastUndo');b.hidden=!undo;b.onclick=()=>{clearTimeout(toastT);$('#toast').hidden=true;undo&&undo()};$('#toast').hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>$('#toast').hidden=true,undo?10000:3500)}
+
+// ---------- backup reminder banner ----------
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const isStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+function updateBanner(){
+  const lb=+localStorage.getItem(LBKEY)||0,age=Date.now()-lb,hasData=coll.length+Object.keys(custom).length>0;
+  const synced=sync&&sync.last&&Date.now()-sync.last<864e5&&!sync.err;
+  const need=hasData&&!synced&&(lb?(changeCount>=10||(changeCount>0&&age>7*864e5)):changeCount>=5);
+  const iosHint=isIOS&&!isStandalone()&&hasData&&!localStorage.getItem('opcg_iosHint');
+  const el=$('#banner');el.hidden=!(need||iosHint);if(el.hidden)return;
+  el.innerHTML=(need?`<b>Back up your cards.</b> They are saved only in this browser, and there ${changeCount===1?'is 1 change':`are ${changeCount} changes`} since ${lb?`your last backup (${new Date(lb).toLocaleDateString()})`:'you started (no backup yet)'}.
+    <div class="row" style="margin-top:8px"><button class="btn mini" id="bnBackup">Back up now</button><button class="btn alt mini" id="bnSync">Set up sync</button></div>`:'')
+   +(iosHint?`<div class="${need?'meta':''}" style="margin-top:${need?8:0}px">iPhone tip: tap Share → <b>Add to Home Screen</b> and open the app from there. Safari can erase a website's saved data after about 7 days without use, but not for apps on the Home Screen. <button class="btn alt mini" id="bnIos">Got it</button></div>`:'');
+  const b=$('#bnBackup');if(b)b.onclick=doBackup;const s=$('#bnSync');if(s)s.onclick=openSync;const i=$('#bnIos');if(i)i.onclick=()=>{try{localStorage.setItem('opcg_iosHint','1')}catch(_){}updateBanner()}}
+function updateSyncBtn(){const b=$('#syncBtn');if(!b)return;
+  b.textContent=!sync?'Sync':sync.err?'Sync ⚠':sync.busy?'Syncing…':`Synced ${new Date(sync.last).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+  b.title=!sync?'Use the same cards on your phone and computer':sync.err?sync.err:'Last sync succeeded'}
+function afterSave(ch){updateBanner();updateSyncBtn();if(sync&&ch)scheduleSync(4000);if(ch)dailySnap()}
+
+// ---------- backup file (a NEW time-stamped file every time - never overwrites) ----------
+const stamp2=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${today()}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`};
+function doBackup(){
+  const name=`opcg-backup-${stamp2()}.json`;
+  download(new Blob([JSON.stringify({app:'opcg-tracker',version:1,saved:new Date().toISOString(),rate:$('#rate').value,custom,coll})],{type:'application/json'}),name);
+  try{localStorage.setItem(LBKEY,String(Date.now()));localStorage.setItem(CNKEY,'0')}catch(e){}changeCount=0;updateBanner();
+  exSet(`Backup saved as ${name}. Each backup is a new file, older ones are never overwritten. Keep them somewhere safe (Files, iCloud Drive, Google Drive).`);toast('Backup downloaded')}
+$('#backup').onclick=doBackup;
+$('#restore').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{const d=JSON.parse(await f.text());if(d.app!=='opcg-tracker'||!Array.isArray(d.coll))throw 0;
+    if(!confirm(`Replace what is on this device with the backup (${d.coll.length} rows)?\n(A safety copy of the current data is made first.)`))return;
+    await snapshot('Before restore');applyData(d);toast('Backup restored')}
+  catch(_){alert('That file is not an OPCG Tracker backup.')}};
+$('#clear').onclick=async()=>{const a=prompt('This removes ALL cards and sold records from this device - and from your other devices at the next sync.\n\nA safety copy is kept under Recover.\n\nType DELETE to continue.');
+  if(a!=='DELETE')return;await snapshot('Before clear all');coll=[];save();render();toast('All cards removed. Use Recover to get them back.')};
+
+// ---------- sync via a private GitHub repository ----------
+const GH='https://api.github.com',F_DATA='opcg-data.json',F_PHOTOS='opcg-photos.json';
+const b64enc=s=>{const u=new TextEncoder().encode(s);let bin='';for(let i=0;i<u.length;i+=0x8000)bin+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(bin)};
+const b64dec=b=>{const bin=atob(b.replace(/\s/g,'')),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u)};
+class SyncErr extends Error{constructor(m,retry){super(m);this.retry=retry}}
+async function gh(method,path,body){
+  let r;try{r=await fetch(GH+path,{method,headers:{Authorization:'Bearer '+sync.token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined})}
+  catch(e){throw new SyncErr('No internet connection - will retry when you are back online.')}
+  return r}
+async function okOrThrow(r){if(r.ok)return;
+  if(r.status===401)throw new SyncErr('GitHub rejected the token. It may have expired - make a new one and reconnect.');
+  if(r.status===403)throw new SyncErr('GitHub refused (403). Check the token has "Contents: Read and write" for this repository, or wait a minute if you hit a rate limit.');
+  if(r.status===404)throw new SyncErr('Repository not found, or the token has no access to it. Check the name (owner/repo) and the token\'s repository access.');
+  if(r.status===409||r.status===422)throw new SyncErr('The other device saved at the same moment.',true);
+  throw new SyncErr('GitHub error '+r.status)}
+async function readRemote(name,metaOnly){
+  const r=await gh('GET',`/repos/${sync.repo}/contents/${name}`);if(r.status===404)return null;await okOrThrow(r);const j=await r.json();
+  if(metaOnly)return{sha:j.sha};
+  let text;if(j.encoding==='base64'&&j.content)text=b64dec(j.content);
+  else{const b=await gh('GET',`/repos/${sync.repo}/git/blobs/${j.sha}`);await okOrThrow(b);text=b64dec((await b.json()).content)}
+  return{sha:j.sha,doc:JSON.parse(text)}}
+async function writeRemote(name,obj,sha){
+  const r=await gh('PUT',`/repos/${sync.repo}/contents/${name}`,{message:'OPCG sync '+new Date().toISOString(),content:b64enc(JSON.stringify(obj)),...(sha?{sha}:{})});
+  await okOrThrow(r);return(await r.json()).content.sha}
+const rateU=()=>+localStorage.getItem(RUKEY)||0;
+function docOf(rows,tombs,cust,rate){return{v:1,saved:new Date().toISOString(),rate,tomb:tombs,custom:cust,rows:rows.map(x=>{const{photo,...r}=x;if(photo)r.ph=fnv(photo);return r})}}
+const canonOf=d=>stable({r:[...d.rows].sort((a,b)=>a.id<b.id?-1:1),t:d.tomb,c:d.custom,rate:d.rate});
+let syncing=false,syncAgain=false,syncTimer=null;
+function scheduleSync(ms){if(!sync||!navigator.onLine)return;clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(),ms)}
+async function syncNow(){
+  if(!sync)return;if(syncing){syncAgain=true;return}
+  syncing=true;sync.busy=true;updateSyncBtn();$('#syncMsg')&&($('#syncMsg').textContent='Syncing…');
+  try{
+    for(let attempt=0;attempt<4;attempt++){
+      try{await syncOnce();sync.err=null;sync.last=Date.now();break}
+      catch(e){if(e instanceof SyncErr&&e.retry&&attempt<3)continue;throw e}}
+    changeCount=0;try{localStorage.setItem(CNKEY,'0')}catch(_){}
+  }catch(e){console.warn('sync failed',e);sync.err=e.message||String(e)}
+  finally{sync.busy=false;syncing=false;try{const{busy,...keep}=sync;localStorage.setItem(SKEY,JSON.stringify(keep))}catch(_){}
+    updateSyncBtn();updateBanner();$('#syncMsg')&&($('#syncMsg').textContent=sync.err?('⚠ '+sync.err):('Synced at '+new Date(sync.last).toLocaleTimeString()));
+    if(syncAgain){syncAgain=false;scheduleSync(500)}}}
+async function syncOnce(){
+  stamp();
+  const rd=await readRemote(F_DATA),R=rd?.doc||{rows:[],tomb:{},custom:{},rate:{v:'',u:0}};
+  const rowsL=new Map(coll.map(x=>[x.id,x])),rowsR=new Map((R.rows||[]).map(x=>[x.id,x])),tL=tomb,tR=R.tomb||{};
+  const ids=new Set([...rowsL.keys(),...rowsR.keys(),...Object.keys(tL).filter(k=>k[0]==='r').map(k=>k.slice(2)),...Object.keys(tR).filter(k=>k[0]==='r').map(k=>k.slice(2))]);
+  const outTomb={},picked=[];
+  for(const id of ids){const l=rowsL.get(id),r=rowsR.get(id),td=Math.max(tL['r:'+id]||0,tR['r:'+id]||0),lu=l?.u||0,ru=r?.u||0;
+    if(td>Math.max(lu,ru)){outTomb['r:'+id]=td;continue}if(!l&&!r)continue;picked.push(lu>=ru?{row:l,from:'L'}:{row:r,from:'R'})}
+  const outCustom={},cn=new Set([...Object.keys(custom),...Object.keys(R.custom||{}),...Object.keys(tL).filter(k=>k[0]==='c').map(k=>k.slice(2)),...Object.keys(tR).filter(k=>k[0]==='c').map(k=>k.slice(2))]);
+  for(const n of cn){const l=custom[n],r=(R.custom||{})[n],td=Math.max(tL['c:'+n]||0,tR['c:'+n]||0),lu=l?.u||0,ru=r?.u||0;
+    if(td>Math.max(lu,ru)){outTomb['c:'+n]=td;continue}if(!l&&!r)continue;outCustom[n]=lu>=ru?l:r}
+  const lr={v:$('#rate').value,u:rateU()},rr=R.rate||{v:'',u:0},outRate=lr.u>=rr.u?lr:rr;
+  // photos: only download the remote photo file if a winning remote row has a photo we don't already have
+  let remotePhotos=null,remotePhotoSha=null;const needPhotos=picked.some(p=>p.from==='R'&&p.row.ph&&!(rowsL.get(p.row.id)?.photo&&fnv(rowsL.get(p.row.id).photo)===p.row.ph));
+  if(needPhotos){const pr=await readRemote(F_PHOTOS);remotePhotos=pr?.doc||{};remotePhotoSha=pr?.sha||null}
+  const finalRows=picked.map(({row,from})=>{if(from==='L')return row;const{ph,...r}=row;const l=rowsL.get(r.id);
+    if(ph){if(l?.photo&&fnv(l.photo)===ph)r.photo=l.photo;else if(remotePhotos&&remotePhotos[r.id])r.photo=remotePhotos[r.id]}return r});
+  // apply to this device if anything differs
+  const sigOf=(rows,c,rt)=>fnv(stable({r:rows.map(x=>[x.id,x.u,rowSig(x)]).sort(),c:Object.entries(c).map(([n,m])=>[n,m.u,cSig(m)]).sort(),rt}));
+  if(sigOf(finalRows,outCustom,outRate.v)!==sigOf(coll,custom,lr.v)){
+    await snapshot('Before sync merge');
+    coll=finalRows;normColl();custom=outCustom;tomb=outTomb;
+    if(outRate.u>lr.u){$('#rate').value=outRate.v;try{localStorage.setItem('opcg_rate',outRate.v);localStorage.setItem(RUKEY,String(outRate.u))}catch(_){}rateHint()}
+    adoptShadows();applyCustom();rawSave();try{localStorage.setItem(TKEY,JSON.stringify(tomb));localStorage.setItem(CKEY,JSON.stringify(custom))}catch(_){}
+    render();renderPending();if(HAY.size)runSearch(false)}
+  else{tomb=outTomb;try{localStorage.setItem(TKEY,JSON.stringify(tomb))}catch(_){}}
+  // push if the remote copy is out of date
+  const doc=docOf(coll,tomb,custom,outRate);
+  if(rd&&canonOf(doc)===canonOf({rows:R.rows||[],tomb:R.tomb||{},custom:R.custom||{},rate:R.rate||{v:'',u:0}}))return;
+  const remotePh=new Map((R.rows||[]).map(x=>[x.id,x.ph||'']));const wantPh=new Map(doc.rows.map(x=>[x.id,x.ph||'']));
+  const phChanged=[...wantPh].some(([id,h])=>h&&remotePh.get(id)!==h);
+  if(phChanged){const photos={};coll.forEach(x=>{if(x.photo)photos[x.id]=x.photo});
+    if(remotePhotoSha===null){const m=await readRemote(F_PHOTOS,true);remotePhotoSha=m?.sha||null}
+    await writeRemote(F_PHOTOS,photos,remotePhotoSha)}
+  await writeRemote(F_DATA,doc,rd?.sha||null)}
+function openSync(){
+  $('#syncRepo').value=sync?.repo||'';$('#syncTok').value='';$('#syncTok').placeholder=sync?'(saved on this device)':'github_pat_…';
+  $('#syncOff').hidden=!sync;$('#syncNow').hidden=!sync;
+  $('#syncMsg').textContent=sync?(sync.err?'⚠ '+sync.err:'Connected. Last sync '+(sync.last?new Date(sync.last).toLocaleString():'never')):'Not connected.';
+  $('#sd').showModal()}
+$('#syncBtn').onclick=openSync;$('#sdClose').onclick=()=>$('#sd').close();
+$('#syncNow').onclick=()=>syncNow();
+$('#syncOff').onclick=()=>{if(!confirm('Disconnect this device? Your cards stay here. The token is removed from this device.'))return;sync=null;try{localStorage.removeItem(SKEY)}catch(_){}updateSyncBtn();updateBanner();$('#sd').close();toast('Sync turned off on this device')};
+$('#syncGo').onclick=async()=>{
+  const repo=$('#syncRepo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/$/,''),tok=$('#syncTok').value.trim()||sync?.token||'';
+  const msg=t=>$('#syncMsg').textContent=t;
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){msg('Enter the repository as owner/name, e.g. jane/opcg-data');return}
+  if(!tok){msg('Paste your GitHub token.');return}
+  const prev=sync;sync={repo,token:tok};msg('Checking…');
+  try{const r=await gh('GET',`/repos/${repo}`);await okOrThrow(r);const j=await r.json();
+    if(j.private!==true){sync=prev;msg('⚠ That repository is PUBLIC - anyone could see your collection and photos. Make it private first (GitHub → repository Settings → General → Danger Zone → Change visibility), then try again.');return}
+    if(j.permissions&&j.permissions.push===false){sync=prev;msg('⚠ This token can only read the repository. It needs Contents: Read and write.');return}
+    try{localStorage.setItem(SKEY,JSON.stringify(sync))}catch(_){}
+    msg('Connected. Syncing…');updateSyncBtn();await syncNow();
+    if(sync&&!sync.err){msg('✓ Connected and synced. On your other devices, open this same page, tap Sync, and enter the same repository and token.');toast('Sync is on')}
+  }catch(e){sync=prev;msg('⚠ '+(e.message||e))}};
+function startSync(){
+  scheduleSync(800);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleSync(600)});
+  window.addEventListener('online',()=>scheduleSync(600));
+  setInterval(()=>{if(document.visibilityState==='visible')scheduleSync(100)},5*60*1000)}
+
+initTracking();
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+save();dailySnap();render();updateSyncBtn();startSync();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body></html>
