@@ -40,7 +40,7 @@ ol.steps{padding-left:20px;margin:8px 0}ol.steps li{margin:6px 0}
 .tag{display:inline-block;font-size:11px;border:1px solid var(--line);color:var(--mute);border-radius:6px;padding:0 5px;margin:2px 3px 0 0;background:transparent;cursor:pointer;font-family:inherit}
 .tag.warn{border-color:var(--accent);color:var(--accent)}
 .note{border-left:3px solid var(--accent);padding:6px 9px;background:var(--bg);border-radius:6px;font-size:13px;margin-top:6px}
-.note.photo{border-color:#e6a100}.note b{display:block}
+.note.photo{border-color:#e6a100}.note>b:first-child{display:block}
 .mdg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0}
 .mdg label{display:flex;flex-direction:column;font-size:13px;color:var(--mute);gap:3px}
 .mdg .full{grid-column:1/-1}
@@ -422,7 +422,7 @@ function render(){
     visibleIds.push(x.id);
     const tr=document.createElement('tr');if(x.sold)tr.className='sold';
     const pic=x.photo||c?.image||'';
-    tr.innerHTML=`<td class="keep"><input type="checkbox" data-k="sel" aria-label="Select this entry" ${selected.has(x.id)?'checked':''}></td><td><div class="cardcell">${pic?`<img class="thumb" data-k="img" src="${esc(pic)}" alt="${esc(c?.name||x.number)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">`:''}<div><b>${c?esc(c.name):'?'}</b><br><span class="meta">${esc(x.number)}${c?' · '+esc(c.rarity):''}</span><br>${noteTags(c,x.number)}${x.photo?'':`<br><button class="btn alt mini" data-k="ph">+ my photo</button>`}</div></div></td>
+    tr.innerHTML=`<td class="keep"><input type="checkbox" data-k="sel" aria-label="Select this entry" ${selected.has(x.id)?'checked':''}></td><td><div class="cardcell">${pic?`<img class="thumb" data-k="img" src="${esc(pic)}" alt="${esc(c?.name||x.number)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`:''}<div><b>${c?esc(c.name):'?'}</b><br><span class="meta">${esc(x.number)}${c?' · '+esc(c.rarity):''}</span><br>${noteTags(c,x.number)}${x.photo?'':`<br><button class="btn alt mini" data-k="ph">+ my photo</button>`}</div></div></td>
       <td>${c?esc(c.color.join('/')):''}</td><td>${c?.cost??'–'}</td><td>${c?.power??'–'}</td><td>${esc(x.variant)}</td>
       <td><input type="number" min="1" value="${x.qty}" style="width:56px" data-k="qty" aria-label="Quantity"></td>
       <td class="keep"><select data-k="st" aria-label="Status">${Object.entries(STATUS).map(([k,l])=>`<option value="${k}" ${statusKey(x)===k?'selected':''}>${l}</option>`).join('')}</select>
@@ -529,7 +529,7 @@ function runSearch(reset=true){
   r.slice(0,SHOWN).forEach(c=>{
     const p=lowest(c),el=document.createElement('div');el.className='rc';
     const out=c.prices?.length&&c.prices.every(x=>!x.stock);
-    el.innerHTML=`<img src="${esc(c.image||'')}" alt="${esc(c.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">
+    el.innerHTML=`<img src="${esc(c.image||'')}" alt="${esc(c.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">
       <div style="min-width:0"><div class="name">${esc(c.name)}${own[c.number]?`<span class="badge">own ${own[c.number]}</span>`:''}</div>
       <div class="meta">${esc(c.number)} · ${esc(c.rarity)} · ${esc(c.type?c.type[0]+c.type.slice(1).toLowerCase():'–')}</div>
       <div class="meta">${(c.color||[]).map(k=>`<span class="dot" style="background:${COLORS[k]||'#999'}"></span>${esc(k)}`).join(' ')} · Cost ${c.cost??'–'} · Power ${c.power??'–'}</div>
