@@ -234,6 +234,8 @@ def main():
 
     cards = load_db(codes)
     print(f"English data: {len(cards)} cards")
+    if full and len(cards) < 100:
+        sys.exit(f"Only {len(cards)} English cards downloaded - refusing to publish an empty card list.")
     rows, info = scrape(codes)
     total = sum(len(v) for v in rows.values())
     if total >= 500 or (not full and total > 0):
