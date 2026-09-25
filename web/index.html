@@ -86,6 +86,11 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     <button class="btn alt" id="addManual">Add</button>
     <span class="status" id="status" aria-live="polite"></span>
   </div>
+  <details style="margin-top:10px"><summary>Add several cards by number</summary>
+    <p class="meta">One card per line (or separated by commas). Add <b>x2</b> for quantity and <b>alt</b> for the alt-art / parallel version. Example: <code>OP05-119 x2</code>, <code>OP01-001 alt</code>. The app fills in the English details, picture and price (if loaded) and lets you review before adding.</p>
+    <textarea id="bulk" rows="5" style="width:100%;box-sizing:border-box" placeholder="OP05-119 x2&#10;OP01-001 alt&#10;ST01-012"></textarea>
+    <div class="row" style="margin-top:6px"><button class="btn alt" id="addBulk">Add these to review</button></div>
+  </details>
 </div>
 
 <div class="panel" id="pending" hidden>
@@ -384,10 +389,46 @@ function commit(p){
   const v=card.prices[p.variant]?.variant||'Normal';
   const photo=p.isPhoto?p.src:undefined;
   const ex=coll.find(x=>x.number===card.number&&x.variant===v&&!x.sold&&statusKey(x)==='own');
-  if(ex){ex.qty+=p.qty;if(!ex.photo&&photo)ex.photo=photo}
-  else coll.push({id:uid(),number:card.number,variant:v,qty:p.qty,sold:false,...(photo?{photo}:{})});
-  return true;
+  if(ex){ex.qty+=p.qty;if(!ex.photo&&photo)ex.photo=photo;return ex}
+  const row={id:uid(),number:card.number,variant:v,qty:p.qty,sold:false,...(photo?{photo}:{})};
+  coll.push(row);return row;
 }
+// ---- add by number: parse text, and best-effort save of the card picture ----
+function normNumber(s){s=(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');const m=s.match(/^([A-Z]{1,3}\d{2}[A-Z]?)(\d{3})$/);return m?m[1]+'-'+m[2]:null}
+function parseNumberList(text){
+  const out=[],bad=[];
+  (text||'').split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).forEach(line=>{
+    let qty=1,alt=false,t=line;
+    t=t.replace(/[x×]\s*(\d{1,3})\b/i,(_,n)=>{qty=+n;return ' '});
+    t=t.replace(/\b(alt|parallel|par|p)\b/ig,()=>{alt=true;return ' '});
+    const m=t.match(/([A-Za-z]{1,3}\s*\d{2}[A-Za-z]?)\s*[-–]?\s*(\d{3})/);
+    const n=m?normNumber(m[1]+m[2]):null;
+    if(n)out.push({number:n,qty:Math.max(1,qty),alt});else bad.push(line);
+  });
+  return {out,bad};
+}
+const artCache=new Map();
+async function grabArt(number){
+  const u=DB[number]?.image;if(!u)return null;if(artCache.has(u))return artCache.get(u);
+  let r=null;const i=await loadImage(u,true);
+  if(i){try{const w=Math.min(220,i.naturalWidth),c=document.createElement('canvas');c.width=w;c.height=Math.round(w*i.naturalHeight/i.naturalWidth);
+    c.getContext('2d').drawImage(i,0,0,c.width,c.height);r=c.toDataURL('image/jpeg',.8)}catch(e){r=null}}
+  artCache.set(u,r);return r}
+async function fillArt(rows){
+  let n=0;
+  for(const row of rows){if(!row||row.photo||!coll.includes(row))continue;const d=await grabArt(row.number);if(d&&!row.photo){row.photo=d;row.photoArt=true;n++}}
+  if(n){save();render()}
+}
+function addNumbers(text){
+  const {out,bad}=parseNumberList(text);let nf=0;
+  out.forEach(o=>{const c=cardFor(o.number);if(!c)nf++;addPending(o.number,c?.image||'');
+    const p=pending[pending.length-1];p.qty=o.qty;
+    if(o.alt&&c){const k=c.prices.findIndex(x=>x.variant!=='Normal');if(k>=0)p.variant=k}});
+  renderPending();
+  const msg=[];if(out.length)msg.push(`${out.length} added to the review list`+(nf?` (${nf} not in the database - you can add those by hand)`:''));
+  if(bad.length)msg.push(`couldn't read: ${bad.join(', ')}`);
+  $('#status').textContent=msg.join('. ')||'Nothing to add - type a card number like OP05-119.';
+  return out.length}
 function renderPending(){
   $('#pending').hidden=!pending.length;
   $('#pendingList').innerHTML='';
@@ -417,12 +458,12 @@ function renderPending(){
     const v=el.querySelector('[data-k=var]'); if(v) v.onchange=e=>p.variant=+e.target.value;
     const q=el.querySelector('[data-k=qty]'); if(q) q.onchange=e=>p.qty=Math.max(1,+e.target.value||1);
     const man=el.querySelector('[data-k=man]'); if(man) man.onclick=()=>openManual(p.number);
-    const ok=el.querySelector('[data-k=ok]'); if(ok) ok.onclick=()=>{commit(p);pending.splice(idx,1);save();render();renderPending()};
+    const ok=el.querySelector('[data-k=ok]'); if(ok) ok.onclick=()=>{const r=commit(p);pending.splice(idx,1);save();render();renderPending();if(r&&!p.isPhoto)fillArt([r])};
     el.querySelector('[data-k=no]').onclick=()=>{pending.splice(idx,1);renderPending()};
     $('#pendingList').appendChild(el);
   });
 }
-$('#addAll').onclick=()=>{const keep=[];pending.forEach(p=>{if(!commit(p))keep.push(p)});pending=keep;save();render();renderPending()};
+$('#addAll').onclick=()=>{const keep=[],added=[];pending.forEach(p=>{const r=commit(p);if(!r)keep.push(p);else if(!p.isPhoto)added.push(r)});pending=keep;save();render();renderPending();fillArt(added)};
 
 // ---------- inputs ----------
 async function handleFiles(files){
@@ -448,7 +489,12 @@ async function handleFiles(files){
 }
 $('#file').onchange=e=>{handleFiles([...e.target.files]);e.target.value=''};
 const drop=$('#drop');drop.ondragover=e=>e.preventDefault();drop.ondrop=e=>{e.preventDefault();handleFiles([...e.dataTransfer.files])};
-$('#addManual').onclick=()=>{const n=$('#manual').value.toUpperCase().trim();if(!n)return;addPending(n,cardFor(n)?.image||'');$('#manual').value='';renderPending()};
+$('#addManual').onclick=()=>{const v=$('#manual').value.trim();if(!v)return;
+  if(/[\n,;]|[xX×]\s*\d/.test(v)||parseNumberList(v).out.length>1){addNumbers(v)}
+  else{const n=v.toUpperCase();addPending(normNumber(n)||n,cardFor(normNumber(n)||n)?.image||'');renderPending()}
+  $('#manual').value=''};
+$('#manual').addEventListener('keydown',e=>{if(e.key==='Enter')$('#addManual').click()});
+$('#addBulk').onclick=()=>{if(addNumbers($('#bulk').value))$('#bulk').value=''};
 
 // ---------- collection ----------
 const priceOf=x=>{const c=DB[x.number];return c?.prices.filter(p=>p.variant===x.variant).sort((a,b)=>a.price_jpy-b.price_jpy)[0]};
@@ -702,10 +748,10 @@ let qt;['#q'].forEach(id=>$(id).oninput=()=>{clearTimeout(qt);qt=setTimeout(runS
 $('#more').onclick=()=>{SHOWN+=24;runSearch(false)};
 $('#qReset').onclick=()=>{$('#q').value='';['#fColor','#fType','#fSet','#fRarity','#fCost'].forEach(id=>$(id).value='');$('#fSort').value='num';runSearch()};
 function pickPhoto(x){const i=document.createElement('input');i.type='file';i.accept='image/*';
-  i.onchange=async()=>{const f=i.files[0];if(!f)return;try{x.photo=await shrink(URL.createObjectURL(await toUsable(f)));$('#status').textContent='';save();render();if(lbCur===x)openLb(x)}catch(e){alert('Could not open that photo. If it is an iPhone HEIC photo, export it as JPEG (or on iPhone: Settings > Camera > Formats > Most Compatible).')}};i.click()}
+  i.onchange=async()=>{const f=i.files[0];if(!f)return;try{x.photo=await shrink(URL.createObjectURL(await toUsable(f)));delete x.photoArt;$('#status').textContent='';save();render();if(lbCur===x)openLb(x)}catch(e){alert('Could not open that photo. If it is an iPhone HEIC photo, export it as JPEG (or on iPhone: Settings > Camera > Formats > Most Compatible).')}};i.click()}
 let lbCur=null;
 function openLb(x){lbCur=x;const c=DB[x.number];$('#lbTitle').textContent=`${c?c.name:'?'} · ${x.number} · ${x.variant}`;
-  $('#lbFigs').innerHTML=(x.photo?`<figure><img src="${esc(x.photo)}" alt="Your photo"><figcaption class="meta">Your photo</figcaption></figure>`:'')
+  $('#lbFigs').innerHTML=(x.photo?`<figure><img src="${esc(x.photo)}" alt="Your photo"><figcaption class="meta">${x.photoArt?'Saved card picture':'Your photo'}</figcaption></figure>`:'')
    +(c?.image?`<figure><img src="${esc(c.image)}" alt="Official art" referrerpolicy="no-referrer" onerror="this.parentNode.style.display='none'"><figcaption class="meta">Official English art (may differ from your version)</figcaption></figure>`:'');
   $('#lbReplace').textContent=x.photo?'Replace my photo':'Add my photo';$('#lbRemove').hidden=!x.photo;
   if(!$('#lb').open)$('#lb').showModal()}
@@ -749,7 +795,7 @@ $('#csv').onclick=()=>{
   const q=v=>`"${String(v??'').replace(/"/g,'""')}"`,r=rate();
   const rows=[['Number','Name','Type','Color','Cost','Power','Rarity','Version','Qty','Status','Date sold','Unit price JPY','Total JPY',...(r?['Rate PHP per JPY','Unit price PHP','Total PHP']:[]),'My price','My currency','Price source','Yuyu-tei URL','Official image URL','Image (Google Sheets / Excel 365)','My photo saved','ID']];
   list.forEach(({x,c,pr,u})=>rows.push([x.number,c.name,c.type,(c.color||[]).join('/'),c.cost,c.power,c.rarity,x.variant,x.qty,statusLabel(x),x.soldDate||'',u||'',u*x.qty,
-    ...(r?[r,Math.round(u*r),Math.round(u*r*x.qty)]:[]),hasSell(x)?x.sellPrice:'',hasSell(x)?(x.sellCur||'PHP'):'',pr?(pr.manual?'Manual':'Yuyu-tei'):'None',pr?.url??'',c.image??'',c.image?`=IMAGE("${c.image}")`:'',x.photo?'yes':'no',x.id]));
+    ...(r?[r,Math.round(u*r),Math.round(u*r*x.qty)]:[]),hasSell(x)?x.sellPrice:'',hasSell(x)?(x.sellCur||'PHP'):'',pr?(pr.manual?'Manual':'Yuyu-tei'):'None',pr?.url??'',c.image??'',c.image?`=IMAGE("${c.image}")`:'',x.photo&&!x.photoArt?'yes':'no',x.id]));
   download(new Blob(['﻿'+rows.map(r=>r.map(q).join(',')).join('\n')],{type:'text/csv'}),fname('csv'));
   exSet('CSV saved. It has no pictures (use Excel or PDF for those). Edit Status / Date sold / Qty and use Import to update the app.');
 };
