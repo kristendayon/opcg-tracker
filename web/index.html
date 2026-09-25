@@ -31,6 +31,12 @@ tr.sold td{opacity:.6}tr.sold td.keep{opacity:1}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .seg label{padding:7px 12px;cursor:pointer;position:relative}.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}.seg label:focus-within{outline:2px solid var(--accent);outline-offset:-2px}.seg input:checked+span{font-weight:700;color:var(--accent)}
 .wrap{overflow-x:auto}
+details.panel>summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;font-size:16px}
+details.panel>summary::-webkit-details-marker{display:none}
+details.panel>summary::before{content:'▸';color:var(--mute);width:14px}
+details.panel[open]>summary::before{content:'▾'}
+details.panel>summary .meta{font-size:13px}
+details.panel>.dbody{margin-top:12px}
 .danger{color:var(--accent)!important;border-color:var(--accent)!important}
 [hidden]{display:none!important}
 #banner{border-left:4px solid var(--accent)}
@@ -81,29 +87,15 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   </div>
 </div>
 
-<div class="panel" id="searchPanel">
-  <b>Search card database</b> <span class="meta" id="sCount"></span>
-  <div class="row" style="margin-top:8px">
-    <input id="q" type="text" placeholder="Name, number or Japanese name (e.g. luffy, OP05, ルフィ)" style="flex:1;min-width:220px" aria-label="Search cards">
-    <select id="fColor" aria-label="Color"><option value="">Any color</option></select>
-    <select id="fType" aria-label="Type"><option value="">Any type</option></select>
-    <select id="fSet" aria-label="Set"><option value="">Any set</option></select>
-    <select id="fRarity" aria-label="Rarity"><option value="">Any rarity</option></select>
-    <select id="fCost" aria-label="Cost"><option value="">Any cost</option></select>
-    <select id="fSort" aria-label="Sort"><option value="num">Sort: number</option><option value="hi">Price: high → low</option><option value="lo">Price: low → high</option><option value="name">Name A–Z</option></select>
-    <button class="btn alt mini" id="qReset">Reset</button>
-  </div>
-  <div class="res" id="results"></div>
-  <div class="row" style="margin-top:10px"><button class="btn alt" id="more" hidden>Show more</button></div>
-</div>
-
 <div class="panel" id="pending" hidden>
   <div class="row" style="justify-content:space-between"><div><b>Review scans</b> <span class="meta">— confirm number and version, then add</span></div>
   <button class="btn" id="addAll">Add all valid</button></div>
   <div id="pendingList"></div>
 </div>
 
-<div class="panel">
+<details class="panel" id="collDet" open>
+  <summary><b>My collection</b> <span class="meta" id="collSum"></span></summary>
+  <div class="dbody">
   <div class="row" style="justify-content:space-between">
     <div class="rate row">
       <b>Conversion rate</b> 1 ¥ = ₱ <input id="rate" type="number" step="0.0001" min="0" style="width:96px" placeholder="e.g. 0.38">
@@ -129,10 +121,43 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     <div style="width:28px"></div>
     <div><div class="meta">Sold (for)</div><div class="tot" id="soldTotal">–</div><div class="meta" id="soldCount"></div></div>
   </div>
-  <div class="status" id="exStatus" aria-live="polite" style="margin-bottom:6px">Excel and PDF include photos and use whatever is in the filter above.</div>
+  <div class="status" id="exStatus" aria-live="polite" style="margin-bottom:6px">Excel and PDF include photos and follow the status filter, search, filters and sort you set below.</div>
+  <div class="row" id="viewCtl" style="margin:8px 0">
+    <input id="cq" type="text" placeholder="Search my collection: name, number, set (OP01), rarity, alt art..." style="flex:1;min-width:220px" aria-label="Search my collection">
+    <select id="cSet" aria-label="Filter by set"><option value="">Any set</option></select>
+    <select id="cRar" aria-label="Filter by rarity"><option value="">Any rarity</option></select>
+    <select id="cVer" aria-label="Filter by version"><option value="">Any version</option></select>
+    <select id="cSort" aria-label="Sort my collection">
+      <option value="added">Sort: order added</option><option value="newest">Newest added first</option>
+      <option value="setasc">Set: OP01 → OP17</option><option value="setdesc">Set: OP17 → OP01</option>
+      <option value="phigh">Price: high → low</option><option value="plow">Price: low → high</option>
+      <option value="name">Name A–Z</option><option value="rar">Rarity: rarest first</option></select>
+    <button class="btn alt mini" id="cReset" type="button">Reset</button>
+    <span class="meta" id="cShown"></span>
+  </div>
   <div id="bulkBar" class="row" hidden style="margin:6px 0;padding:8px 10px;border:1px solid var(--accent);border-radius:8px"><b id="bulkN"></b><button class="btn alt mini danger" id="bulkDel" type="button">Delete selected</button><button class="btn alt mini" id="bulkClear" type="button">Clear selection</button></div>
   <div class="wrap"><table><thead><tr><th><input type="checkbox" id="selAll" aria-label="Select all shown"></th><th>Card</th><th>Color</th><th>Cost</th><th>Power</th><th>Version</th><th>Qty</th><th>Status</th><th>My price</th><th>Yuyu-tei price</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
-</div>
+  </div>
+</details>
+
+<details class="panel" id="dbDet">
+  <summary><b>Search card database</b> <span class="meta" id="sCount"></span> <span class="meta">- tap to open or close</span></summary>
+  <div class="dbody">
+  <div class="row" style="margin-top:8px">
+    <input id="q" type="text" placeholder="Name, number or Japanese name (e.g. luffy, OP05, ルフィ)" style="flex:1;min-width:220px" aria-label="Search cards">
+    <select id="fColor" aria-label="Color"><option value="">Any color</option></select>
+    <select id="fType" aria-label="Type"><option value="">Any type</option></select>
+    <select id="fSet" aria-label="Set"><option value="">Any set</option></select>
+    <select id="fRarity" aria-label="Rarity"><option value="">Any rarity</option></select>
+    <select id="fCost" aria-label="Cost"><option value="">Any cost</option></select>
+    <select id="fSort" aria-label="Sort"><option value="num">Sort: number</option><option value="hi">Price: high → low</option><option value="lo">Price: low → high</option><option value="name">Name A–Z</option></select>
+    <button class="btn alt mini" id="qReset">Reset</button>
+  </div>
+  <div class="res" id="results"></div>
+  <div class="row" style="margin-top:10px"><button class="btn alt" id="more" hidden>Show more</button></div>
+  </div>
+</details>
+
 <p class="meta">Prices: yuyu-tei.jp selling price, refreshed daily. Card data: community optcgjson. Unofficial fan tool. Sold rows keep the price the card had on the day you marked it sold.</p>
 <dialog id="lb"><div class="row" style="justify-content:space-between"><b id="lbTitle"></b><button class="btn alt mini" id="lbClose">Close</button></div>
   <div class="figs" id="lbFigs" style="margin:10px 0"></div>
@@ -239,6 +264,16 @@ async function getWorker(){
   return worker;
 }
 const loadImg=file=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(file)});
+class DecodeErr extends Error{constructor(kind){super('decode '+kind);this.kind=kind}}
+const isHeic=f=>/^image\/hei[cf]/i.test(f.type||'')||/\.hei[cf]$/i.test(f.name||'');
+// iPhone photos are often HEIC, which Chrome/Brave/Edge/Firefox cannot open: convert to JPEG in the browser first.
+async function toUsable(file){
+  try{await loadImg(file);return file}catch(_){}
+  $('#status').textContent=`Converting ${file.name||'photo'} (iPhone HEIC format)... a few seconds`;
+  try{await loadJs(LIBS.heic);let out=await heic2any({blob:file,toType:'image/jpeg',quality:.92});if(Array.isArray(out))out=out[0];
+    return new File([out],(file.name||'photo').replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'})}
+  catch(e){console.warn('conversion failed',e);throw new DecodeErr(isHeic(file)?'heic':'format')}
+}
 function toCanvas(img,box,scale){ // box = [x,y,w,h] fractions
   const sw=img.width*box[2], sh=img.height*box[3];
   const c=document.createElement('canvas'); const s=Math.min(scale, 2400/Math.max(sw,sh));
@@ -302,7 +337,7 @@ function bestVariantIndex(card){
   let best=-1;p.forEach((x,i)=>{if(x.variant==='Normal'&&(best<0||x.price_jpy<p[best].price_jpy))best=i});
   return best<0?0:best;
 }
-function addPending(number,src,isPhoto=false){const c=cardFor(number);pending.push({number,src,isPhoto,variant:c?bestVariantIndex(c):0,qty:1})}
+function addPending(number,src,isPhoto=false,reason='',fname=''){const c=cardFor(number);pending.push({number,src,isPhoto,reason,fname,variant:c?bestVariantIndex(c):0,qty:1})}
 function commit(p){
   const card=cardFor(p.number); if(!card) return false;
   const v=card.prices[p.variant]?.variant||'Normal';
@@ -320,6 +355,7 @@ function renderPending(){
     const el=document.createElement('div');el.className='item';
     let banner='';
     if(!card&&p.number)banner=`<div class="note"><b>Not found in the card data or on Yuyu-tei</b><span>${esc(p.number)} isn't listed anywhere the app looks. If the scan misread a digit, fix the number above. If the card is real (very new, or a special print), add its details yourself.</span><br><button class="btn alt mini" data-k="man" style="margin-top:6px">Add details manually</button></div>`;
+    else if(!card&&p.reason)banner=`<div class="note photo"><b>This file couldn't be opened${p.fname?': '+esc(p.fname):''}</b><span>${p.reason==='heic'?'It looks like an iPhone HEIC photo that this browser could not convert (the converter needs an internet connection the first time). Export it as JPEG (Mac Photos: File > Export), or on iPhone use Settings > Camera > Formats > Most Compatible, or type the number above.':'This browser cannot open that kind of file. Try a JPEG or PNG photo, or type the number above.'}</span></div>`;
     else if(!card)banner=`<div class="note photo"><b>Couldn't read the card number from this photo</b><span>This is a photo problem, not a Yuyu-tei problem. Retake it flat, in even light, with the number at the bottom-right sharp, or type the number above.</span></div>`;
     else if(notes.includes('noenglish'))banner=`<div class="note"><b>On Yuyu-tei, but English details are missing</b><span>The name shown is Japanese and cost, power and color are blank. You can fill them in.</span><br><button class="btn alt mini" data-k="man" style="margin-top:6px">Add details manually</button></div>`;
     else if(notes.includes('notyuyu'))banner=`<div class="note"><b>Not listed on Yuyu-tei</b><span>${notes.includes('manual')?'You added a reference price manually.':'There is no market price for this card. You can still add it, and enter a reference price if you like.'}</span><br><button class="btn alt mini" data-k="man" style="margin-top:6px">${notes.includes('manual')?'Edit manual price':'Add a price manually'}</button></div>`;
@@ -348,8 +384,10 @@ $('#addAll').onclick=()=>{const keep=[];pending.forEach(p=>{if(!commit(p))keep.p
 
 // ---------- inputs ----------
 async function handleFiles(files){
-  for(const f of files){
+  for(const orig of files){
+    let f=orig;
     try{
+      f=await toUsable(f);
       if(!Object.keys(DB).length) throw new Error('db');
       if(mode()==='batch'){
         $('#status').textContent=`Scanning ${f.name}…`;
@@ -361,7 +399,9 @@ async function handleFiles(files){
         $('#status').textContent=`Reading ${f.name}…`;
         const r=await readNumber(f); addPending(r.number,await shrink(r.src),true); $('#status').textContent='';
       }
-    }catch(e){console.warn(e);try{addPending(null,await shrink(URL.createObjectURL(f)),true)}catch(_){addPending(null,'')}}
+    }catch(e){console.warn(e);
+      if(e instanceof DecodeErr){addPending(null,'',false,e.kind,orig.name);$('#status').textContent=''}
+      else{try{addPending(null,await shrink(URL.createObjectURL(f)),true)}catch(_){addPending(null,'')}}}
     renderPending();
   }
 }
@@ -397,6 +437,38 @@ function setStatus(i,st){
   if(n<x.qty){const c={...x,id:uid(),qty:n};applyStatus(c,st);x.qty-=n;coll.splice(i+1,0,c)}else applyStatus(x,st);
   mergeDupes();save();render();
 }
+// ----- my collection: search, filters, sorting -----
+const RAR_ORD=['SEC','SP','SR','L','R','UC','C','TR','P'];
+const rarIdx=r=>{const i=RAR_ORD.indexOf(r);return i<0?99:i};
+const VER_ORD={Normal:0,Parallel:1,'Super Parallel':2};
+const numKey=n=>{const m=String(n).match(/^([A-Z]+)(\d*)-(\d+)/);if(!m)return[9,0,0];const g={OP:0,ST:1,EB:2,PRB:3,P:4}[m[1]];return[g===undefined?5:g,+m[2]||0,+m[3]]};
+const cmpKey=(a,b)=>a[0]-b[0]||a[1]-b[1]||a[2]-b[2];
+const rowInfo=(x,i)=>{const c=DB[x.number];return{x,i,c,set:x.number.split('-')[0].toUpperCase(),rar:c?.rarity||'-'}};
+const rowHay=o=>[o.c?.name||'',o.x.number,o.set,o.rar,o.x.variant,o.x.variant!=='Normal'?'alt art altart':'',statusLabel(o.x),(o.c?.color||[]).join(' '),o.c?.type||'',...(o.c?.prices||[]).map(p=>p.jp_name)].join(' ').toLowerCase();
+function fillSel(id,items,anyLabel){const el=$(id),cur=el.value;el.innerHTML=`<option value="">${anyLabel}</option>`+items.map(([v,l])=>`<option value="${esc(v)}">${esc(l)}</option>`).join('');el.value=items.some(([v])=>v===cur)?cur:''}
+function refreshViewOptions(){
+  const infos=coll.map(x=>rowInfo(x,0));
+  fillSel('#cSet',[...new Set(infos.map(o=>o.set))].sort((a,b)=>cmpKey(numKey(a+'-0'),numKey(b+'-0'))).map(v=>[v,v]),'Any set');
+  fillSel('#cRar',[...new Set(infos.map(o=>o.rar))].sort((a,b)=>rarIdx(a)-rarIdx(b)).map(v=>[v,v==='SP'?'SP (special)':v]),'Any rarity');
+  const vers=[...new Set(coll.map(x=>x.variant))],items=[['Normal','Normal only']];
+  if(vers.some(v=>v!=='Normal'))items.push(['__alt','Alt art (all parallels)']);vers.filter(v=>v!=='Normal').forEach(v=>items.push([v,v]));
+  fillSel('#cVer',items,'Any version')}
+function viewRows(){
+  const f=$('#filter').value,terms=$('#cq').value.toLowerCase().split(/\s+/).filter(Boolean).map(t=>t.replace(/^(op|st|eb|prb)[-_]?(\d)/,'$1$2'));
+  const setF=$('#cSet').value,rarF=$('#cRar').value,verF=$('#cVer').value,so=$('#cSort').value;
+  const rows=coll.map((x,i)=>rowInfo(x,i)).filter(o=>matchFilter(o.x,f)&&(!setF||o.set===setF)&&(!rarF||o.rar===rarF)
+    &&(!verF||(verF==='__alt'?o.x.variant!=='Normal':o.x.variant===verF))&&terms.every(t=>rowHay(o).includes(t)));
+  const cmpNum=(a,b)=>cmpKey(numKey(a.x.number),numKey(b.x.number))||(VER_ORD[a.x.variant]??9)-(VER_ORD[b.x.variant]??9)||a.i-b.i;
+  const price=o=>(hasSell(o.x)||priceOf(o.x))?valDisp(o.x):null;   // my price if set, else Yuyu-tei / manual price
+  const byPrice=dir=>(a,b)=>{const pa=price(a),pb=price(b);if(pa===null&&pb===null)return cmpNum(a,b);if(pa===null)return 1;if(pb===null)return-1;return dir*(pa-pb)||cmpNum(a,b)};
+  const sorts={added:(a,b)=>a.i-b.i,newest:(a,b)=>b.i-a.i,setasc:cmpNum,setdesc:(a,b)=>cmpNum(b,a),phigh:byPrice(-1),plow:byPrice(1),
+    name:(a,b)=>nameOf(a.x).localeCompare(nameOf(b.x))||cmpNum(a,b),rar:(a,b)=>rarIdx(a.rar)-rarIdx(b.rar)||cmpNum(a,b)};
+  return rows.sort(sorts[so]||sorts.added)}
+let cqT;$('#cq').oninput=()=>{clearTimeout(cqT);cqT=setTimeout(render,120)};
+['#cSet','#cRar','#cVer','#cSort'].forEach(id=>$(id).onchange=render);
+$('#cReset').onclick=()=>{$('#cq').value='';['#cSet','#cRar','#cVer'].forEach(id=>$(id).value='');$('#cSort').value='added';$('#filter').value='all';render()};
+// collapsible sections remember open/closed
+[['#collDet','opcg_open_coll',true],['#dbDet','opcg_open_db',false]].forEach(([id,k,def])=>{const d=$(id);let v=def;try{const t=localStorage.getItem(k);if(t!==null)v=t==='1'}catch(e){}d.open=v;d.addEventListener('toggle',()=>{try{localStorage.setItem(k,d.open?'1':'0')}catch(e){}})});
 let selected=new Set(),visibleIds=[];
 function nameOf(x){const c=DB[x.number];return c?c.name:x.number}
 function updateBulk(){
@@ -414,11 +486,15 @@ function deleteRow(i){
   toast(`Deleted ${nameOf(removed)}`,()=>{coll.splice(Math.min(i,coll.length),0,removed);save();render()})}
 function render(){
   const tb=$('#rows');tb.innerHTML='';visibleIds=[];let own=0,ownN=0,sold=0,soldN=0,saleN=0,resN=0,ask=0,mineN=0,soldRev=0,soldMine=0;const f=$('#filter').value;
-  coll.forEach((x,i)=>{
-    const c=DB[x.number], pr=priceOf(x), u=unitJpy(x), line=u*x.qty;
+  coll.forEach(x=>{
+    const u=unitJpy(x),line=u*x.qty;
     if(x.sold){sold+=line;soldN+=x.qty}else{own+=line;ownN+=x.qty;if(x.avail==='sale')saleN+=x.qty;if(x.avail==='reserved')resN+=x.qty}
     const vd=valDisp(x)*x.qty;if(x.sold){soldRev+=vd;if(hasSell(x))soldMine+=x.qty}else{ask+=vd;if(hasSell(x))mineN+=x.qty}
-    if(!matchFilter(x,f)) return;
+  });
+  refreshViewOptions();
+  const view=viewRows();
+  view.forEach(({x,i})=>{
+    const c=DB[x.number], pr=priceOf(x), u=unitJpy(x), line=u*x.qty;
     visibleIds.push(x.id);
     const tr=document.createElement('tr');if(x.sold)tr.className='sold';
     const pic=x.photo||c?.image||'';
@@ -450,6 +526,8 @@ function render(){
   $('#total').innerHTML=money(own);$('#count').textContent=`${ownN} card${ownN===1?'':'s'}`+(saleN?` · ${saleN} for sale`:'')+(resN?` · ${resN} reserved`:'');
   $('#soldTotal').textContent=fmtDisp(soldRev);$('#soldCount').textContent=`${soldN} card${soldN===1?'':'s'}`+(soldN?` · ${soldMine} at your price`:'');
   $('#askTotal').textContent=fmtDisp(ask);$('#askCount').textContent=`${mineN} of ${ownN} card${ownN===1?'':'s'} priced by you`+(rate()?'':' (enter a rate to include ₱ prices)');
+  $('#cShown').textContent=view.length===coll.length?`${coll.length} entr${coll.length===1?'y':'ies'}`:`Showing ${view.length} of ${coll.length} entries`;
+  $('#collSum').textContent=coll.length?`${ownN} in hand${soldN?` · ${soldN} sold`:''} · ${money(own).replace(/<[^>]+>/g,'')}`:'no cards yet';
   updateBulk();
   if(HAY.size)runSearch(false);
 }
@@ -547,7 +625,7 @@ let qt;['#q'].forEach(id=>$(id).oninput=()=>{clearTimeout(qt);qt=setTimeout(runS
 $('#more').onclick=()=>{SHOWN+=24;runSearch(false)};
 $('#qReset').onclick=()=>{$('#q').value='';['#fColor','#fType','#fSet','#fRarity','#fCost'].forEach(id=>$(id).value='');$('#fSort').value='num';runSearch()};
 function pickPhoto(x){const i=document.createElement('input');i.type='file';i.accept='image/*';
-  i.onchange=async()=>{const f=i.files[0];if(!f)return;try{x.photo=await shrink(URL.createObjectURL(f));save();render();if(lbCur===x)openLb(x)}catch(e){alert('Could not read that image.')}};i.click()}
+  i.onchange=async()=>{const f=i.files[0];if(!f)return;try{x.photo=await shrink(URL.createObjectURL(await toUsable(f)));$('#status').textContent='';save();render();if(lbCur===x)openLb(x)}catch(e){alert('Could not open that photo. If it is an iPhone HEIC photo, export it as JPEG (or on iPhone: Settings > Camera > Formats > Most Compatible).')}};i.click()}
 let lbCur=null;
 function openLb(x){lbCur=x;const c=DB[x.number];$('#lbTitle').textContent=`${c?c.name:'?'} · ${x.number} · ${x.variant}`;
   $('#lbFigs').innerHTML=(x.photo?`<figure><img src="${esc(x.photo)}" alt="Your photo"><figcaption class="meta">Your photo</figcaption></figure>`:'')
@@ -560,11 +638,12 @@ $('#lbReplace').onclick=()=>pickPhoto(lbCur);
 $('#lbRemove').onclick=()=>{delete lbCur.photo;save();render();$('#lb').close()};
 // ---------- exports (CSV / Excel / PDF) ----------
 const exSet=t=>$('#exStatus').textContent=t;
-function exportList(){const f=$('#filter').value;return coll.filter(x=>matchFilter(x,f))
+function exportList(){return viewRows().map(o=>o.x)
   .map(x=>{const c=DB[x.number]||{},pr=priceOf(x),u=unitJpy(x);return{x,c,pr,u,line:u*x.qty}})}
 const fname=ext=>`opcg-collection-${today()}.${ext}`;
 function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
-const LIBS={xlsx:'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
+const LIBS={heic:'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js',
+  xlsx:'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js',
   pdf:'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
   table:'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js'};
 const loadedJs={};
@@ -584,7 +663,8 @@ async function collectImages(list,label){const out=new Array(list.length);let do
   const run=async()=>{while(idx<list.length){const k=idx++;out[k]=await imageFor(list[k].x);exSet(`${label}: preparing images ${++done}/${list.length}…`)}};
   await Promise.all([run(),run(),run(),run(),run(),run()]);return out}
 const fit=(im,bw,bh)=>{const k=Math.min(bw/im.w,bh/im.h);return{w:im.w*k,h:im.h*k}};
-const viewLabel=()=>({all:'All cards',unsold:'Not sold',own:'In collection',sale:'For sale',reserved:'Reserved',sold:'Sold'}[$('#filter').value]);
+const viewLabel=()=>{let t={all:'All cards',unsold:'Not sold',own:'In collection',sale:'For sale',reserved:'Reserved',sold:'Sold'}[$('#filter').value];const q=$('#cq').value.trim(),sv=$('#cSet').value,rv=$('#cRar').value,vv=$('#cVer').value,so=$('#cSort');
+  if(q)t+=` | search: ${q}`;if(sv)t+=` | set ${sv}`;if(rv)t+=` | rarity ${rv}`;if(vv)t+=` | ${vv==='__alt'?'alt art':vv}`;if(so.value!=='added')t+=` | sorted: ${so.selectedOptions[0].textContent}`;return t};
 const imgNote=imgs=>{const n=imgs.filter(i=>!i).length;return n?` ${n} card${n>1?'s have':' has'} no picture (add "+ my photo" to fix).`:''};
 
 $('#csv').onclick=()=>{
