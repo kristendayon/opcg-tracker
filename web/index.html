@@ -547,10 +547,11 @@ function render(){
       <td class="keep"><div class="row" style="flex-wrap:nowrap;gap:4px"><input type="number" min="0" step="any" data-k="sp" style="width:82px" placeholder="${x.sold?'Sold for':'My price'}" value="${x.sellPrice>0?x.sellPrice:''}" aria-label="My selling price per card">
         <select data-k="sc" aria-label="Currency of my price"><option value="PHP" ${(x.sellCur||defCur())==='PHP'?'selected':''}>₱</option><option value="JPY" ${(x.sellCur||defCur())==='JPY'?'selected':''}>¥</option></select></div>
         <div class="meta" data-k="diff">${diffHtml(x)}</div><button class="btn alt mini" data-k="fill" type="button" title="Fill with the Yuyu-tei price, rounded to the nearest 10">≈ market</button></td>
-      <td class="price">${(pr||x.sold)?money(u):'n/a'}${x.qty>1?`<br><span class="meta">× ${x.qty} = ${moneyTxt(line)}</span>`:''}${x.sold?'<br><span class="meta">price when sold</span>':''}<br><a class="meta" href="${esc(pr&&pr.url?pr.url:'https://yuyu-tei.jp/sell/opc/s/search?search_word='+encodeURIComponent(x.number))}" target="_blank" rel="noopener">${pr&&pr.url?'Open on':'Look up on'} Yuyu-tei ↗</a></td>
+      <td class="price">${(pr||x.sold)?money(u):'<button class="btn alt mini" data-k="mprice" type="button" title="Type the price you see on Yuyu-tei">Enter price</button>'}${x.qty>1?`<br><span class="meta">× ${x.qty} = ${moneyTxt(line)}</span>`:''}${x.sold?'<br><span class="meta">price when sold</span>':''}<br><a class="meta" href="${esc(pr&&pr.url?pr.url:'https://yuyu-tei.jp/sell/opc/s/search?search_word='+encodeURIComponent(x.number))}" target="_blank" rel="noopener">${pr&&pr.url?'Open on':'Look up on'} Yuyu-tei ↗</a></td>
       <td class="keep"><button class="btn alt mini danger" data-k="del" type="button" title="Delete this entry">Delete</button></td>`;
     const im=tr.querySelector('[data-k=img]'); if(im) im.onclick=()=>openLb(x);
     const ph=tr.querySelector('[data-k=ph]'); if(ph) ph.onclick=()=>pickPhoto(x);
+    const mpb=tr.querySelector('[data-k=mprice]'); if(mpb) mpb.onclick=()=>openManual(x.number);
     tr.querySelectorAll('[data-k=mtag]').forEach(b=>b.onclick=()=>openManual(b.dataset.n));
     const sp=tr.querySelector('[data-k=sp]'),sc=tr.querySelector('[data-k=sc]');
     const setSell=()=>{const v=parseFloat(sp.value);if(v>0){x.sellPrice=v;x.sellCur=sc.value;try{localStorage.setItem('opcg_sellcur',sc.value)}catch(_){}}else{delete x.sellPrice;delete x.sellCur}save();render()};
@@ -590,7 +591,7 @@ function openManual(num){
   const b=BASE[num],m=custom[num]||{},c=DB[num],locked=!!b&&!b.jpOnly;
   $('#mdNum').value=num;
   $('#mdTitle').textContent=locked?'Add a price manually':(b?'Add English details manually':'Add card details manually');
-  $('#mdWhy').textContent=locked?'This card is in the official English data but not on Yuyu-tei, so there is no market price. Enter a reference price if you want it counted in your totals.'
+  $('#mdWhy').textContent=locked?'Enter the price in yen (for example the price you see on Yuyu-tei). It is used for this card\'s value until real Yuyu-tei prices are loaded.'
     :b?'Yuyu-tei lists this card but the English data does not have it yet. Fill in what you can read on the card.':'This number is not in the English data or on Yuyu-tei. Enter what is printed on the card.';
   const src=locked?c:{...c,...m};
   $('#mdName').value=(locked||m.name)?(src?.name||''):(b?'':'');
