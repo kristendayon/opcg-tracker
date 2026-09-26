@@ -60,7 +60,7 @@ img.thumb{width:44px;height:62px;object-fit:cover;border-radius:4px;background:v
 .mini{padding:2px 8px;font-size:12px}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);max-width:min(720px,94vw);padding:14px}
 dialog::backdrop{background:rgba(0,0,0,.55)}
-.figs{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}.figs figure{margin:0;text-align:center;max-width:300px}.figs img{max-width:100%;max-height:60vh;border-radius:8px}
+.figs{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}.figs figure{margin:0;text-align:center;max-width:300px}.figs img{max-width:100%;max-height:70vh;border-radius:8px}.figs figure.big{max-width:min(520px,88vw)}.figs figure.big img{min-width:min(340px,80vw)}
 </style>
 </head>
 <body><main>
@@ -383,7 +383,7 @@ function bestVariantIndex(card){
   let best=-1;p.forEach((x,i)=>{if(x.variant==='Normal'&&(best<0||x.price_jpy<p[best].price_jpy))best=i});
   return best<0?0:best;
 }
-function addPending(number,src,isPhoto=false,reason='',fname=''){const c=cardFor(number);pending.push({number,src,isPhoto,reason,fname,variant:c?bestVariantIndex(c):0,qty:1})}
+function addPending(number,src,isPhoto=false,reason='',fname=''){number=cleanNumber(number);const c=cardFor(number);pending.push({number,src,isPhoto,reason,fname,variant:c?bestVariantIndex(c):0,qty:1})}
 function commit(p){
   const card=cardFor(p.number); if(!card) return false;
   const v=card.prices[p.variant]?.variant||'Normal';
@@ -395,14 +395,15 @@ function commit(p){
 }
 // ---- add by number: parse text, and best-effort save of the card picture ----
 function normNumber(s){s=(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');const m=s.match(/^([A-Z]{1,3}\d{2}[A-Z]?)(\d{3})$/);return m?m[1]+'-'+m[2]:null}
+function cleanNumber(s){const m=String(s||'').toUpperCase().match(/([A-Z]{1,3})\s*[-–]?\s*(\d{2}[A-Z]?)\s*[-–]?\s*(\d{3})/);return m?m[1]+m[2]+'-'+m[3]:String(s||'').toUpperCase().trim()}
 function parseNumberList(text){
   const out=[],bad=[];
   (text||'').split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).forEach(line=>{
     let qty=1,alt=false,t=line;
     t=t.replace(/[x×]\s*(\d{1,3})\b/i,(_,n)=>{qty=+n;return ' '});
-    t=t.replace(/\b(alt|parallel|par|p)\b/ig,()=>{alt=true;return ' '});
-    const m=t.match(/([A-Za-z]{1,3}\s*\d{2}[A-Za-z]?)\s*[-–]?\s*(\d{3})/);
-    const n=m?normNumber(m[1]+m[2]):null;
+    t=t.replace(/\b(alt|parallel|par)\b/ig,()=>{alt=true;return ' '});
+    const m=t.match(/([A-Za-z]{1,3})\s*[-–]?\s*(\d{2}[A-Za-z]?)\s*[-–]?\s*(\d{3})/);
+    const n=m?normNumber(m[1]+m[2]+m[3]):null;
     if(n)out.push({number:n,qty:Math.max(1,qty),alt});else bad.push(line);
   });
   return {out,bad};
@@ -416,13 +417,13 @@ function imgSources(n,first){
     `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/${id.split('-')[0]}/${id}_EN.webp`];
   return l.filter((u,i)=>u&&l.indexOf(u)===i)}
 function nextSrc(el){const l=imgSources(el.dataset.n),i=(+el.dataset.i||0)+1;
-  if(i<l.length){el.dataset.i=i;el.src=l[i]}else el.style.display='none'}
+  if(i<l.length){el.dataset.i=i;el.src=l[i]}else if(el.dataset.fb){el.onerror=null;el.src=el.dataset.fb}else el.style.display='none'}
 const artCache=new Map();
 async function grabArt(number){
   if(artCache.has(number))return artCache.get(number);
   let r=null;
   for(const u of imgSources(number)){const i=await loadImage(u,true);if(!i)continue;
-    try{const w=Math.min(220,i.naturalWidth),c=document.createElement('canvas');c.width=w;c.height=Math.round(w*i.naturalHeight/i.naturalWidth);
+    try{const w=Math.min(400,i.naturalWidth),c=document.createElement('canvas');c.width=w;c.height=Math.round(w*i.naturalHeight/i.naturalWidth);
       c.getContext('2d').drawImage(i,0,0,c.width,c.height);r=c.toDataURL('image/jpeg',.8);break}catch(e){}}
   artCache.set(number,r);return r}
 async function fillArt(rows){
@@ -465,7 +466,7 @@ function renderPending(){
         <button class="btn" data-k="ok">Add</button><button class="btn alt" data-k="no">Discard</button></div>`
       :`<div class="row" style="margin-top:6px"><button class="btn alt" data-k="no">Discard</button></div>`}
     </div>`;
-    el.querySelector('[data-k=num]').onchange=e=>{p.number=e.target.value.toUpperCase().trim();const c=cardFor(p.number);p.variant=c?bestVariantIndex(c):0;renderPending()};
+    el.querySelector('[data-k=num]').onchange=e=>{p.number=cleanNumber(e.target.value);const c=cardFor(p.number);p.variant=c?bestVariantIndex(c):0;renderPending()};
     const v=el.querySelector('[data-k=var]'); if(v) v.onchange=e=>p.variant=+e.target.value;
     const q=el.querySelector('[data-k=qty]'); if(q) q.onchange=e=>p.qty=Math.max(1,+e.target.value||1);
     const man=el.querySelector('[data-k=man]'); if(man) man.onclick=()=>openManual(p.number);
@@ -502,7 +503,7 @@ $('#file').onchange=e=>{handleFiles([...e.target.files]);e.target.value=''};
 const drop=$('#drop');drop.ondragover=e=>e.preventDefault();drop.ondrop=e=>{e.preventDefault();handleFiles([...e.dataTransfer.files])};
 $('#addManual').onclick=()=>{const v=$('#manual').value.trim();if(!v)return;
   if(/[\n,;]|[xX×]\s*\d/.test(v)||parseNumberList(v).out.length>1){addNumbers(v)}
-  else{const n=v.toUpperCase();addPending(normNumber(n)||n,cardFor(normNumber(n)||n)?.image||'');renderPending()}
+  else{const n=cleanNumber(v);addPending(n,cardFor(n)?.image||'');renderPending()}
   $('#manual').value=''};
 $('#manual').addEventListener('keydown',e=>{if(e.key==='Enter')$('#addManual').click()});
 $('#addBulk').onclick=()=>{if(addNumbers($('#bulk').value))$('#bulk').value=''};
@@ -596,7 +597,7 @@ function render(){
     visibleIds.push(x.id);
     const tr=document.createElement('tr');if(x.sold)tr.className='sold';
     const pic=x.photo||imgSources(x.number)[0]||'';
-    tr.innerHTML=`<td class="keep"><input type="checkbox" data-k="sel" aria-label="Select this entry" ${selected.has(x.id)?'checked':''}></td><td><div class="cardcell">${pic?`<img class="thumb" data-k="img" src="${esc(pic)}" data-n="${esc(x.number)}" alt="${esc(c?.name||x.number)}" loading="lazy" referrerpolicy="no-referrer" onerror="nextSrc(this)">`:''}<div><b>${c?esc(c.name):'?'}</b><br><span class="meta">${esc(x.number)}${c?' · '+esc(c.rarity):''}</span><br>${noteTags(c,x.number)}${x.photo?'':`<br><button class="btn alt mini" data-k="ph">+ my photo</button>`}</div></div></td>
+    tr.innerHTML=`<td class="keep"><input type="checkbox" data-k="sel" aria-label="Select this entry" ${selected.has(x.id)?'checked':''}></td><td><div class="cardcell">${pic?`<img class="thumb" data-k="img" src="${esc(pic)}" data-n="${esc(x.number)}" alt="${esc(c?.name||x.number)}" loading="lazy" referrerpolicy="no-referrer" onerror="nextSrc(this)">`:''}<div><b>${c?esc(c.name):'?'}</b><br><span class="meta">${esc(x.number)}${c?' · '+esc(c.rarity):''}</span><br>${noteTags(c,x.number)}${x.photo&&!x.photoArt?'':`<br><button class="btn alt mini" data-k="ph">+ my photo</button>`}</div></div></td>
       <td>${c?esc(c.color.join('/')):''}</td><td>${c?.cost??'–'}</td><td>${c?.power??'–'}</td><td>${esc(x.variant)}</td>
       <td><input type="number" min="1" value="${x.qty}" style="width:56px" data-k="qty" aria-label="Quantity"></td>
       <td class="keep"><select data-k="st" aria-label="Status">${Object.entries(STATUS).map(([k,l])=>`<option value="${k}" ${statusKey(x)===k?'selected':''}>${l}</option>`).join('')}</select>
@@ -762,14 +763,18 @@ function pickPhoto(x){const i=document.createElement('input');i.type='file';i.ac
   i.onchange=async()=>{const f=i.files[0];if(!f)return;try{x.photo=await shrink(URL.createObjectURL(await toUsable(f)));delete x.photoArt;$('#status').textContent='';save();render();if(lbCur===x)openLb(x)}catch(e){alert('Could not open that photo. If it is an iPhone HEIC photo, export it as JPEG (or on iPhone: Settings > Camera > Formats > Most Compatible).')}};i.click()}
 let lbCur=null;
 function openLb(x){lbCur=x;const c=DB[x.number];$('#lbTitle').textContent=`${c?c.name:'?'} · ${x.number} · ${x.variant}`;
-  $('#lbFigs').innerHTML=(x.photo?`<figure><img src="${esc(x.photo)}" alt="Your photo"><figcaption class="meta">${x.photoArt?'Saved card picture':'Your photo'}</figcaption></figure>`:'')
-   +(c?.image?`<figure><img src="${esc(c.image)}" alt="Official art" referrerpolicy="no-referrer" onerror="this.parentNode.style.display='none'"><figcaption class="meta">Official English art (may differ from your version)</figcaption></figure>`:'');
-  $('#lbReplace').textContent=x.photo?'Replace my photo':'Add my photo';$('#lbRemove').hidden=!x.photo;
+  const own=x.photo&&!x.photoArt,online=imgSources(x.number)[0]||'',big=own?x.photo:(online||x.photo||'');
+  let h='';
+  if(big)h+=`<figure class="big"><img src="${esc(big)}" data-n="${esc(x.number)}" alt="${esc(c?.name||x.number)}" referrerpolicy="no-referrer" ${own?'':`data-fb="${x.photo?esc(x.photo):''}" onerror="nextSrc(this)"`}><figcaption class="meta">${own?'Your photo':'Card picture'}</figcaption></figure>`;
+  if(own&&imgSources(x.number)[0])h+=`<figure><img src="${esc(imgSources(x.number)[0])}" data-n="${esc(x.number)}" alt="Official art" referrerpolicy="no-referrer" onerror="nextSrc(this)"><figcaption class="meta">Official art (may differ from your version)</figcaption></figure>`;
+  if(!h)h='<p class="meta">No picture found for this card yet. Use "Add my photo".</p>';
+  $('#lbFigs').innerHTML=h;
+  $('#lbReplace').textContent=own?'Replace my photo':'Add my own photo';$('#lbRemove').hidden=!own;
   if(!$('#lb').open)$('#lb').showModal()}
 $('#lbClose').onclick=()=>$('#lb').close();
 $('#lb').onclick=e=>{if(e.target.id==='lb')e.target.close()};
 $('#lbReplace').onclick=()=>pickPhoto(lbCur);
-$('#lbRemove').onclick=()=>{delete lbCur.photo;save();render();$('#lb').close()};
+$('#lbRemove').onclick=()=>{delete lbCur.photo;delete lbCur.photoArt;save();render();$('#lb').close()};
 // ---------- exports (CSV / Excel / PDF) ----------
 const exSet=t=>$('#exStatus').textContent=t;
 function exportList(){return viewRows().map(o=>o.x)
