@@ -109,6 +109,11 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     </div>
     <div class="row">
       <select id="filter" aria-label="Filter"><option value="all">All cards</option><option value="unsold">Not sold</option><option value="own">In collection</option><option value="sale">For sale</option><option value="reserved">Reserved</option><option value="sold">Sold</option></select>
+      <select id="exSort" aria-label="Sort the downloaded file by" title="How the Excel / PDF / CSV file is ordered">
+        <option value="view">File order: as shown in list</option><option value="name">Name A-Z</option><option value="namez">Name Z-A</option><option value="num">Card number OP01 to OP17</option><option value="numz">Card number OP17 to OP01</option>
+        <option value="type">Type</option><option value="color">Color</option><option value="cost">Cost low to high</option><option value="costz">Cost high to low</option><option value="power">Power high to low</option><option value="rar">Rarity</option>
+        <option value="phigh">Price high to low</option><option value="plow">Price low to high</option><option value="thigh">Total value high to low</option><option value="qty">Quantity high to low</option><option value="status">Status</option><option value="sdate">Date sold (newest first)</option>
+      </select>
       <button class="btn alt" id="xlsx" title="Excel file with photos">Excel</button>
       <button class="btn alt" id="pdf" title="PDF with photos">PDF</button>
       <button class="btn alt" id="csv" title="Text only - no pictures">CSV</button>
@@ -783,8 +788,21 @@ $('#lbReplace').onclick=()=>pickPhoto(lbCur);
 $('#lbRemove').onclick=()=>{delete lbCur.photo;delete lbCur.photoArt;save();render();$('#lb').close()};
 // ---------- exports (CSV / Excel / PDF) ----------
 const exSet=t=>$('#exStatus').textContent=t;
-function exportList(){return viewRows().map(o=>o.x)
-  .map(x=>{const c=DB[x.number]||{},pr=priceOf(x),u=unitJpy(x);return{x,c,pr,u,line:u*x.qty}})}
+function exportList(){
+  const list=viewRows().map(o=>o.x).map(x=>{const c=DB[x.number]||{},pr=priceOf(x),u=unitJpy(x);return{x,c,pr,u,line:u*x.qty}});
+  const k=$('#exSort').value;if(k==='view')return list;
+  const idx=new Map(list.map((o,i)=>[o,i]));
+  const num=(a,b)=>cmpKey(numKey(a.x.number),numKey(b.x.number))||(VER_ORD[a.x.variant]??9)-(VER_ORD[b.x.variant]??9)||idx.get(a)-idx.get(b);
+  const txt=(f,dir=1)=>(a,b)=>{const A=String(f(a)||''),B=String(f(b)||'');if(!A&&B)return 1;if(A&&!B)return-1;return dir*A.localeCompare(B)||num(a,b)};
+  const nm=(a,b)=>String(a.c.name||a.x.number).localeCompare(String(b.c.name||b.x.number));
+  const val=o=>(hasSell(o.x)||o.pr)?valDisp(o.x):null;
+  const numd=(f,dir)=>(a,b)=>{const A=f(a),B=f(b),an=A==null||isNaN(A),bn=B==null||isNaN(B);if(an&&bn)return num(a,b);if(an)return 1;if(bn)return-1;return dir*(A-B)||num(a,b)};
+  const sorts={name:(a,b)=>nm(a,b)||num(a,b),namez:(a,b)=>nm(b,a)||num(a,b),num:num,numz:(a,b)=>num(b,a),
+    type:txt(o=>o.c.type),color:txt(o=>(o.c.color||[]).join('/')),cost:numd(o=>o.c.cost,1),costz:numd(o=>o.c.cost,-1),power:numd(o=>o.c.power,-1),
+    rar:(a,b)=>rarIdx(a.c.rarity)-rarIdx(b.c.rarity)||num(a,b),phigh:numd(val,-1),plow:numd(val,1),thigh:numd(o=>val(o)==null?null:val(o)*o.x.qty,-1),qty:numd(o=>o.x.qty,-1),
+    status:(a,b)=>String(statusLabel(a.x)).localeCompare(String(statusLabel(b.x)))||num(a,b),
+    sdate:(a,b)=>{const A=a.x.soldDate||'',B=b.x.soldDate||'';if(!A&&B)return 1;if(A&&!B)return-1;return B.localeCompare(A)||num(a,b)}};
+  return list.sort(sorts[k]||num)}
 const fname=ext=>`opcg-collection-${today()}.${ext}`;
 function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
 const LIBS={heic:'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js',
@@ -808,7 +826,7 @@ async function collectImages(list,label){const out=new Array(list.length);let do
   await Promise.all([run(),run(),run(),run(),run(),run()]);if(artSaved){artSaved=false;save();render()}return out}
 const fit=(im,bw,bh)=>{const k=Math.min(bw/im.w,bh/im.h);return{w:im.w*k,h:im.h*k}};
 const viewLabel=()=>{let t={all:'All cards',unsold:'Not sold',own:'In collection',sale:'For sale',reserved:'Reserved',sold:'Sold'}[$('#filter').value];const q=$('#cq').value.trim(),sv=$('#cSet').value,rv=$('#cRar').value,vv=$('#cVer').value,so=$('#cSort');
-  if(q)t+=` | search: ${q}`;if(sv)t+=` | set ${sv}`;if(rv)t+=` | rarity ${rv}`;if(vv)t+=` | ${vv==='__alt'?'alt art':vv}`;if(so.value!=='added')t+=` | sorted: ${so.selectedOptions[0].textContent}`;return t};
+  if(q)t+=` | search: ${q}`;if(sv)t+=` | set ${sv}`;if(rv)t+=` | rarity ${rv}`;if(vv)t+=` | ${vv==='__alt'?'alt art':vv}`;if($('#exSort').value!=='view')t+=` | sorted: ${$('#exSort').selectedOptions[0].textContent}`;else if(so.value!=='added')t+=` | sorted: ${so.selectedOptions[0].textContent}`;return t};
 const imgNote=imgs=>{const n=imgs.filter(i=>!i).length;return n?` ${n} card${n>1?'s have':' has'} no picture (add "+ my photo" to fix).`:''};
 
 $('#csv').onclick=()=>{
