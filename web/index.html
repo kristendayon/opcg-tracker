@@ -291,7 +291,8 @@ function loadCards(){
     .catch(e=>showDbError(e&&e.message?e.message:String(e)))}
 function onCardsLoaded(d){
   BASE=d.cards;const pm=d.prices||{status:'live'};PRICE_STATUS=pm.status||'live';applyCustom();$('#updated').textContent='Data updated '+d.updated+(PRICE_STATUS==='saved'?' · prices from '+String(pm.date||'').slice(0,10):'');
-  PRICE_META=pm;renderPriceNote();render();buildSearch();renderPending();DB_ERR=''}
+  PRICE_META=pm;renderPriceNote();render();buildSearch();renderPending();DB_ERR='';
+  setTimeout(()=>{try{fillArt(coll.filter(x=>!x.photo))}catch(e){}},1500)}
 loadCards();
 try{$('#rate').value=localStorage.getItem('opcg_rate')||''}catch(e){}
 function rateHint(){$('#rateHint').textContent=rate()?'Pesos shown first, yen in brackets.':'Type today\'s rate to see pesos.'}
@@ -419,16 +420,21 @@ function imgSources(n,first){
 function nextSrc(el){const l=imgSources(el.dataset.n),i=(+el.dataset.i||0)+1;
   if(i<l.length){el.dataset.i=i;el.src=l[i]}else if(el.dataset.fb){el.onerror=null;el.src=el.dataset.fb}else el.style.display='none'}
 const artCache=new Map();
+const proxied=u=>'https://wsrv.nl/?url='+encodeURIComponent(u)+'&w=400&output=jpg';
 async function grabArt(number){
   if(artCache.has(number))return artCache.get(number);
   let r=null;
-  for(const u of imgSources(number)){const i=await loadImage(u,true);if(!i)continue;
-    try{const w=Math.min(400,i.naturalWidth),c=document.createElement('canvas');c.width=w;c.height=Math.round(w*i.naturalHeight/i.naturalWidth);
-      c.getContext('2d').drawImage(i,0,0,c.width,c.height);r=c.toDataURL('image/jpeg',.8);break}catch(e){}}
+  outer:for(const u of imgSources(number)){
+    for(const src of [proxied(u),u]){ // the relay fetches the picture for us, so hotlink blocks and missing CORS headers don't matter
+      const i=await loadImage(src,true,7000);if(!i||i.naturalWidth<40)continue;
+      try{const w=Math.min(400,i.naturalWidth),c=document.createElement('canvas');c.width=w;c.height=Math.round(w*i.naturalHeight/i.naturalWidth);
+        c.getContext('2d').drawImage(i,0,0,c.width,c.height);r=c.toDataURL('image/jpeg',.8);break outer}catch(e){}}}
   artCache.set(number,r);return r}
 async function fillArt(rows){
-  let n=0;
-  for(const row of rows){if(!row||row.photo||!coll.includes(row))continue;const d=await grabArt(row.number);if(d&&!row.photo){row.photo=d;row.photoArt=true;n++}}
+  let n=0,fails=0;
+  for(const row of rows){if(!row||row.photo||!coll.includes(row))continue;
+    const d=await grabArt(row.number);
+    if(d&&!row.photo){row.photo=d;row.photoArt=true;n++;fails=0}else if(!d&&++fails>=5)break}
   if(n){save();render()}
 }
 function addNumbers(text){
@@ -788,19 +794,18 @@ const LIBS={heic:'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.
 const loadedJs={};
 const loadJs=src=>loadedJs[src]||(loadedJs[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;
   s.onerror=()=>{delete loadedJs[src];rej(new Error('Could not load the export tool. Check your internet connection and try again.'))};document.head.appendChild(s)}));
-const loadImage=(src,cors)=>new Promise(res=>{const i=new Image();i.referrerPolicy='no-referrer';if(cors)i.crossOrigin='anonymous';const t=setTimeout(()=>res(null),8000);
+const loadImage=(src,cors,ms=8000)=>new Promise(res=>{const i=new Image();i.referrerPolicy='no-referrer';if(cors)i.crossOrigin='anonymous';const t=setTimeout(()=>res(null),ms);
   i.onload=()=>{clearTimeout(t);res(i)};i.onerror=()=>{clearTimeout(t);res(null)};i.src=src});
 const imgCache=new Map();
-async function imageFor(x){ // -> {data,w,h} or null.  Your own photo first; official art only if the site allows it.
-  if(x.photo){const i=await loadImage(x.photo,false);return i?{data:x.photo,w:i.naturalWidth,h:i.naturalHeight,own:true}:null}
-  const u=DB[x.number]?.image;if(!u)return null;if(imgCache.has(u))return imgCache.get(u);
-  const i=await loadImage(u,true);let r=null;
-  if(i){try{const w=Math.min(140,i.naturalWidth),c=document.createElement('canvas');c.width=w;c.height=Math.round(w*i.naturalHeight/i.naturalWidth);
-    c.getContext('2d').drawImage(i,0,0,c.width,c.height);r={data:c.toDataURL('image/jpeg',.75),w:c.width,h:c.height,own:false}}catch(e){r=null}}
-  imgCache.set(u,r);return r}
+async function imageFor(x){ // -> {data,w,h} or null.  Your own / saved photo first, then the picture chain via grabArt.
+  let d=x.photo;
+  if(!d){d=await grabArt(x.number);if(d){x.photo=d;x.photoArt=true;artSaved=true}}
+  if(!d)return null;
+  const i=await loadImage(d,false);return i?{data:d,w:i.naturalWidth,h:i.naturalHeight,own:!x.photoArt}:null}
+let artSaved=false;
 async function collectImages(list,label){const out=new Array(list.length);let done=0,idx=0;
   const run=async()=>{while(idx<list.length){const k=idx++;out[k]=await imageFor(list[k].x);exSet(`${label}: preparing images ${++done}/${list.length}…`)}};
-  await Promise.all([run(),run(),run(),run(),run(),run()]);return out}
+  await Promise.all([run(),run(),run(),run(),run(),run()]);if(artSaved){artSaved=false;save();render()}return out}
 const fit=(im,bw,bh)=>{const k=Math.min(bw/im.w,bh/im.h);return{w:im.w*k,h:im.h*k}};
 const viewLabel=()=>{let t={all:'All cards',unsold:'Not sold',own:'In collection',sale:'For sale',reserved:'Reserved',sold:'Sold'}[$('#filter').value];const q=$('#cq').value.trim(),sv=$('#cSet').value,rv=$('#cRar').value,vv=$('#cVer').value,so=$('#cSort');
   if(q)t+=` | search: ${q}`;if(sv)t+=` | set ${sv}`;if(rv)t+=` | rarity ${rv}`;if(vv)t+=` | ${vv==='__alt'?'alt art':vv}`;if(so.value!=='added')t+=` | sorted: ${so.selectedOptions[0].textContent}`;return t};
