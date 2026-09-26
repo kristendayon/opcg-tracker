@@ -58,6 +58,7 @@ ol.steps{padding-left:20px;margin:8px 0}ol.steps li{margin:6px 0}
 img.thumb{width:44px;height:62px;object-fit:cover;border-radius:4px;background:var(--line);cursor:zoom-in;flex:none}
 .cardcell{display:flex;gap:8px;align-items:flex-start}
 .mini{padding:2px 8px;font-size:12px}
+th.sh,.sh2{cursor:pointer;user-select:none}th.sh:hover,.sh2:hover{text-decoration:underline}th.sh i,.sh2 i{font-style:normal;color:var(--accent)}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);max-width:min(720px,94vw);padding:14px}
 dialog::backdrop{background:rgba(0,0,0,.55)}
 .figs{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}.figs figure{margin:0;text-align:center;max-width:300px}.figs img{max-width:100%;max-height:70vh;border-radius:8px}.figs figure.big{max-width:min(520px,88vw)}.figs figure.big img{min-width:min(340px,80vw)}
@@ -109,11 +110,6 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     </div>
     <div class="row">
       <select id="filter" aria-label="Filter"><option value="all">All cards</option><option value="unsold">Not sold</option><option value="own">In collection</option><option value="sale">For sale</option><option value="reserved">Reserved</option><option value="sold">Sold</option></select>
-      <select id="exSort" aria-label="Sort the downloaded file by" title="How the Excel / PDF / CSV file is ordered">
-        <option value="view">File order: as shown in list</option><option value="name">Name A-Z</option><option value="namez">Name Z-A</option><option value="num">Card number OP01 to OP17</option><option value="numz">Card number OP17 to OP01</option>
-        <option value="type">Type</option><option value="color">Color</option><option value="cost">Cost low to high</option><option value="costz">Cost high to low</option><option value="power">Power high to low</option><option value="rar">Rarity</option>
-        <option value="phigh">Price high to low</option><option value="plow">Price low to high</option><option value="thigh">Total value high to low</option><option value="qty">Quantity high to low</option><option value="status">Status</option><option value="sdate">Date sold (newest first)</option>
-      </select>
       <button class="btn alt" id="xlsx" title="Excel file with photos">Excel</button>
       <button class="btn alt" id="pdf" title="PDF with photos">PDF</button>
       <button class="btn alt" id="csv" title="Text only - no pictures">CSV</button>
@@ -143,12 +139,12 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
       <option value="added">Sort: order added</option><option value="newest">Newest added first</option>
       <option value="setasc">Set: OP01 → OP17</option><option value="setdesc">Set: OP17 → OP01</option>
       <option value="phigh">Price: high → low</option><option value="plow">Price: low → high</option>
-      <option value="name">Name A–Z</option><option value="rar">Rarity: rarest first</option></select>
+      <option value="name">Name A–Z</option><option value="namez">Name Z–A</option><option value="rar">Rarity: rarest first</option><option value="color" hidden>color</option><option value="colorz" hidden>colorz</option><option value="cost" hidden>cost</option><option value="costz" hidden>costz</option><option value="power" hidden>power</option><option value="powerz" hidden>powerz</option><option value="ver" hidden>ver</option><option value="verz" hidden>verz</option><option value="qty" hidden>qty</option><option value="qtyz" hidden>qtyz</option><option value="status" hidden>status</option><option value="statusz" hidden>statusz</option></select>
     <button class="btn alt mini" id="cReset" type="button">Reset</button>
     <span class="meta" id="cShown"></span>
   </div>
   <div id="bulkBar" class="row" hidden style="margin:6px 0;padding:8px 10px;border:1px solid var(--accent);border-radius:8px"><b id="bulkN"></b><button class="btn alt mini danger" id="bulkDel" type="button">Delete selected</button><button class="btn alt mini" id="bulkClear" type="button">Clear selection</button></div>
-  <div class="wrap"><table><thead><tr><th><input type="checkbox" id="selAll" aria-label="Select all shown"></th><th>Card</th><th>Color</th><th>Cost</th><th>Power</th><th>Version</th><th>Qty</th><th>Status</th><th>My price</th><th>Yuyu-tei price</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+  <div class="wrap"><table><thead><tr><th><input type="checkbox" id="selAll" aria-label="Select all shown"></th><th class="sh" data-h="name">Card <i></i> <span class="sh2" data-h="set" title="Sort by card number">(No.) <i></i></span></th><th class="sh" data-h="color">Color <i></i></th><th class="sh" data-h="cost">Cost <i></i></th><th class="sh" data-h="power">Power <i></i></th><th class="sh" data-h="ver">Version <i></i></th><th class="sh" data-h="qty">Qty <i></i></th><th class="sh" data-h="status">Status <i></i></th><th class="sh" data-h="price">My price <i></i></th><th class="sh" data-h="price">Yuyu-tei price <i></i></th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
   </div>
 </details>
 
@@ -171,6 +167,15 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 </details>
 
 <p class="meta">Prices: yuyu-tei.jp selling price, refreshed daily. Card data: community optcgjson. Unofficial fan tool. Sold rows keep the price the card had on the day you marked it sold.</p>
+<dialog id="exd" style="width:min(420px,94vw)"><b>Sort the file before downloading</b>
+  <p class="meta" style="margin:6px 0 10px">Choose how the rows are ordered in the <span id="exKind">file</span>. Filters and search in your collection still decide which cards are included.</p>
+        <select id="exSort" style="width:100%" aria-label="Sort the downloaded file by" title="How the Excel / PDF / CSV file is ordered">
+        <option value="view">File order: as shown in list</option><option value="name">Name A-Z</option><option value="namez">Name Z-A</option><option value="num">Card number OP01 to OP17</option><option value="numz">Card number OP17 to OP01</option>
+        <option value="type">Type</option><option value="color">Color</option><option value="cost">Cost low to high</option><option value="costz">Cost high to low</option><option value="power">Power high to low</option><option value="rar">Rarity</option>
+        <option value="phigh">Price high to low</option><option value="plow">Price low to high</option><option value="thigh">Total value high to low</option><option value="qty">Quantity high to low</option><option value="status">Status</option><option value="sdate">Date sold (newest first)</option>
+      </select>
+
+  <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn alt" id="exCancel" type="button">Cancel</button><button class="btn" id="exGo" type="button">Download</button></div></dialog>
 <dialog id="lb"><div class="row" style="justify-content:space-between"><b id="lbTitle"></b><button class="btn alt mini" id="lbClose">Close</button></div>
   <div class="figs" id="lbFigs" style="margin:10px 0"></div>
   <div class="row"><button class="btn alt mini" id="lbReplace">Replace my photo</button><button class="btn alt mini" id="lbRemove">Remove my photo</button></div></dialog>
@@ -563,7 +568,17 @@ function refreshViewOptions(){
   const vers=[...new Set(coll.map(x=>x.variant))],items=[['Normal','Normal only']];
   if(vers.some(v=>v!=='Normal'))items.push(['__alt','Alt art (all parallels)']);vers.filter(v=>v!=='Normal').forEach(v=>items.push([v,v]));
   fillSel('#cVer',items,'Any version')}
-function viewRows(){
+const HDR={name:['name','namez'],set:['setasc','setdesc'],color:['color','colorz'],cost:['cost','costz'],power:['powerz','power'],ver:['ver','verz'],qty:['qtyz','qty'],status:['status','statusz'],price:['phigh','plow']};
+function hdrSorts(cmpNum){
+  const cn=o=>o.c?o.c[0]:null;
+  const txt=(f,d)=>(a,b)=>{const A=String(f(a)||''),B=String(f(b)||'');if(!A&&B)return 1;if(A&&!B)return-1;return d*A.localeCompare(B)||cmpNum(a,b)};
+  const nm=(f,d)=>(a,b)=>{const A=f(a),B=f(b),an=A==null||A===''||isNaN(A),bn=B==null||B===''||isNaN(B);if(an&&bn)return cmpNum(a,b);if(an)return 1;if(bn)return-1;return d*(A-B)||cmpNum(a,b)};
+  const col=o=>(o.c?.color||[]).join('/'),st=o=>statusLabel(o.x),ver=o=>VER_ORD[o.x.variant]??9;
+  return{color:txt(col,1),colorz:txt(col,-1),status:txt(st,1),statusz:txt(st,-1),
+    cost:nm(o=>o.c?.cost,1),costz:nm(o=>o.c?.cost,-1),power:nm(o=>o.c?.power,1),powerz:nm(o=>o.c?.power,-1),
+    ver:nm(ver,1),verz:nm(ver,-1),qty:nm(o=>o.x.qty,1),qtyz:nm(o=>o.x.qty,-1)}}
+function markSort(){const cur=$('#cSort').value;document.querySelectorAll('[data-h]').forEach(h=>{const p=HDR[h.dataset.h],i=h.querySelector('i');if(!i)return;const k=p.indexOf(cur);i.textContent=k===0?'▲':k===1?'▼':''})}
+function viewRows(){markSort();
   const f=$('#filter').value,terms=$('#cq').value.toLowerCase().split(/\s+/).filter(Boolean).map(t=>t.replace(/^(op|st|eb|prb)[-_]?(\d)/,'$1$2'));
   const setF=$('#cSet').value,rarF=$('#cRar').value,verF=$('#cVer').value,so=$('#cSort').value;
   const rows=coll.map((x,i)=>rowInfo(x,i)).filter(o=>matchFilter(o.x,f)&&(!setF||o.set===setF)&&(!rarF||o.rar===rarF)
@@ -572,10 +587,12 @@ function viewRows(){
   const price=o=>(hasSell(o.x)||priceOf(o.x))?valDisp(o.x):null;   // my price if set, else Yuyu-tei / manual price
   const byPrice=dir=>(a,b)=>{const pa=price(a),pb=price(b);if(pa===null&&pb===null)return cmpNum(a,b);if(pa===null)return 1;if(pb===null)return-1;return dir*(pa-pb)||cmpNum(a,b)};
   const sorts={added:(a,b)=>a.i-b.i,newest:(a,b)=>b.i-a.i,setasc:cmpNum,setdesc:(a,b)=>cmpNum(b,a),phigh:byPrice(-1),plow:byPrice(1),
-    name:(a,b)=>nameOf(a.x).localeCompare(nameOf(b.x))||cmpNum(a,b),rar:(a,b)=>rarIdx(a.rar)-rarIdx(b.rar)||cmpNum(a,b)};
+    name:(a,b)=>nameOf(a.x).localeCompare(nameOf(b.x))||cmpNum(a,b),namez:(a,b)=>nameOf(b.x).localeCompare(nameOf(a.x))||cmpNum(a,b),
+    ...hdrSorts(cmpNum),rar:(a,b)=>rarIdx(a.rar)-rarIdx(b.rar)||cmpNum(a,b)};
   return rows.sort(sorts[so]||sorts.added)}
 let cqT;$('#cq').oninput=()=>{clearTimeout(cqT);cqT=setTimeout(render,120)};
 ['#cSet','#cRar','#cVer','#cSort'].forEach(id=>$(id).onchange=render);
+document.querySelectorAll('[data-h]').forEach(h=>h.addEventListener('click',e=>{e.stopPropagation();const p=HDR[h.dataset.h],cur=$('#cSort').value;$('#cSort').value=cur===p[0]?p[1]:p[0];render()}));
 $('#cReset').onclick=()=>{$('#cq').value='';['#cSet','#cRar','#cVer'].forEach(id=>$(id).value='');$('#cSort').value='added';$('#filter').value='all';render()};
 // collapsible sections remember open/closed
 [['#collDet','opcg_open_coll',true],['#dbDet','opcg_open_db',false]].forEach(([id,k,def])=>{const d=$(id);let v=def;try{const t=localStorage.getItem(k);if(t!==null)v=t==='1'}catch(e){}d.open=v;d.addEventListener('toggle',()=>{try{localStorage.setItem(k,d.open?'1':'0')}catch(e){}})});
@@ -829,6 +846,12 @@ const viewLabel=()=>{let t={all:'All cards',unsold:'Not sold',own:'In collection
   if(q)t+=` | search: ${q}`;if(sv)t+=` | set ${sv}`;if(rv)t+=` | rarity ${rv}`;if(vv)t+=` | ${vv==='__alt'?'alt art':vv}`;if($('#exSort').value!=='view')t+=` | sorted: ${$('#exSort').selectedOptions[0].textContent}`;else if(so.value!=='added')t+=` | sorted: ${so.selectedOptions[0].textContent}`;return t};
 const imgNote=imgs=>{const n=imgs.filter(i=>!i).length;return n?` ${n} card${n>1?'s have':' has'} no picture (add "+ my photo" to fix).`:''};
 
+// ask how to sort before every download
+let exPass=false,exWhich='';
+[['xlsx','Excel file'],['pdf','PDF'],['csv','CSV file']].forEach(([id,lab])=>$('#'+id).addEventListener('click',e=>{
+  if(exPass){exPass=false;return}e.stopImmediatePropagation();e.preventDefault();exWhich=id;$('#exKind').textContent=lab;$('#exd').showModal()},true));
+$('#exCancel').onclick=()=>$('#exd').close();
+$('#exGo').onclick=()=>{$('#exd').close();exPass=true;$('#'+exWhich).click()};
 $('#csv').onclick=()=>{
   const list=exportList();if(!list.length){alert('Nothing to export in this view.');return}
   const q=v=>`"${String(v??'').replace(/"/g,'""')}"`,r=rate();
@@ -864,7 +887,7 @@ $('#xlsx').onclick=async()=>{
       const row=ws.addRow(cells);row.height=74;row.alignment={vertical:'middle'};row.getCell(3).font={bold:true};row.getCell(11).dataValidation={type:'list',allowBlank:false,formulae:['"In collection,For sale,Reserved,Sold"']};row.getCell(cols.findIndex(k=>k[0]==='My currency')+1).dataValidation={type:'list',allowBlank:true,formulae:['"PHP,JPY"']};
       if(x.sold)row.font={color:{argb:'FF888888'}};
       const im=imgs[i];if(im){const f=fit(im,86,92);const id=wb.addImage({base64:im.data,extension:'jpeg'});
-        ws.addImage(id,{tl:{col:.06,row:i+1+.05},ext:{width:f.w,height:f.h}})}
+        ws.addImage(id,{tl:{col:.06,row:i+1+.05},ext:{width:f.w,height:f.h},editAs:'oneCell'})}
     });
     ws.getColumn(13).numFmt='#,##0';ws.getColumn(14).numFmt='#,##0';if(r){ws.getColumn(15).numFmt='#,##0';ws.getColumn(16).numFmt='#,##0'}
     ws.autoFilter={from:'A1',to:{row:list.length+1,column:cols.length}};
