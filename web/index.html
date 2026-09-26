@@ -407,13 +407,24 @@ function parseNumberList(text){
   });
   return {out,bad};
 }
+// Picture sources tried in order. Official English art first (from the database), then the official
+// Japanese site, then two community image hosts. Any that fail are skipped silently.
+function imgSources(n,first){
+  const id=(n||'').toUpperCase(),c=DB[id];
+  const l=[first||c?.image,`https://www.onepiece-cardgame.com/images/cardlist/card/${id}.png`,
+    `https://optcg-api.arjunbansal-ai.workers.dev/images/${id}.png`,
+    `https://limitlesstcg.nyc3.cdn.digitaloceanspaces.com/one-piece/${id.split('-')[0]}/${id}_EN.webp`];
+  return l.filter((u,i)=>u&&l.indexOf(u)===i)}
+function nextSrc(el){const l=imgSources(el.dataset.n),i=(+el.dataset.i||0)+1;
+  if(i<l.length){el.dataset.i=i;el.src=l[i]}else el.style.display='none'}
 const artCache=new Map();
 async function grabArt(number){
-  const u=DB[number]?.image;if(!u)return null;if(artCache.has(u))return artCache.get(u);
-  let r=null;const i=await loadImage(u,true);
-  if(i){try{const w=Math.min(220,i.naturalWidth),c=document.createElement('canvas');c.width=w;c.height=Math.round(w*i.naturalHeight/i.naturalWidth);
-    c.getContext('2d').drawImage(i,0,0,c.width,c.height);r=c.toDataURL('image/jpeg',.8)}catch(e){r=null}}
-  artCache.set(u,r);return r}
+  if(artCache.has(number))return artCache.get(number);
+  let r=null;
+  for(const u of imgSources(number)){const i=await loadImage(u,true);if(!i)continue;
+    try{const w=Math.min(220,i.naturalWidth),c=document.createElement('canvas');c.width=w;c.height=Math.round(w*i.naturalHeight/i.naturalWidth);
+      c.getContext('2d').drawImage(i,0,0,c.width,c.height);r=c.toDataURL('image/jpeg',.8);break}catch(e){}}
+  artCache.set(number,r);return r}
 async function fillArt(rows){
   let n=0;
   for(const row of rows){if(!row||row.photo||!coll.includes(row))continue;const d=await grabArt(row.number);if(d&&!row.photo){row.photo=d;row.photoArt=true;n++}}
@@ -584,8 +595,8 @@ function render(){
     const c=DB[x.number], pr=priceOf(x), u=unitJpy(x), line=u*x.qty;
     visibleIds.push(x.id);
     const tr=document.createElement('tr');if(x.sold)tr.className='sold';
-    const pic=x.photo||c?.image||'';
-    tr.innerHTML=`<td class="keep"><input type="checkbox" data-k="sel" aria-label="Select this entry" ${selected.has(x.id)?'checked':''}></td><td><div class="cardcell">${pic?`<img class="thumb" data-k="img" src="${esc(pic)}" alt="${esc(c?.name||x.number)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">`:''}<div><b>${c?esc(c.name):'?'}</b><br><span class="meta">${esc(x.number)}${c?' · '+esc(c.rarity):''}</span><br>${noteTags(c,x.number)}${x.photo?'':`<br><button class="btn alt mini" data-k="ph">+ my photo</button>`}</div></div></td>
+    const pic=x.photo||imgSources(x.number)[0]||'';
+    tr.innerHTML=`<td class="keep"><input type="checkbox" data-k="sel" aria-label="Select this entry" ${selected.has(x.id)?'checked':''}></td><td><div class="cardcell">${pic?`<img class="thumb" data-k="img" src="${esc(pic)}" data-n="${esc(x.number)}" alt="${esc(c?.name||x.number)}" loading="lazy" referrerpolicy="no-referrer" onerror="nextSrc(this)">`:''}<div><b>${c?esc(c.name):'?'}</b><br><span class="meta">${esc(x.number)}${c?' · '+esc(c.rarity):''}</span><br>${noteTags(c,x.number)}${x.photo?'':`<br><button class="btn alt mini" data-k="ph">+ my photo</button>`}</div></div></td>
       <td>${c?esc(c.color.join('/')):''}</td><td>${c?.cost??'–'}</td><td>${c?.power??'–'}</td><td>${esc(x.variant)}</td>
       <td><input type="number" min="1" value="${x.qty}" style="width:56px" data-k="qty" aria-label="Quantity"></td>
       <td class="keep"><select data-k="st" aria-label="Status">${Object.entries(STATUS).map(([k,l])=>`<option value="${k}" ${statusKey(x)===k?'selected':''}>${l}</option>`).join('')}</select>
@@ -730,7 +741,7 @@ function runSearch(reset=true){
   r.slice(0,SHOWN).forEach(c=>{
     const p=lowest(c),el=document.createElement('div');el.className='rc';
     const out=c.prices?.length&&c.prices.every(x=>!x.stock);
-    el.innerHTML=`<img src="${esc(c.image||'')}" alt="${esc(c.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">
+    el.innerHTML=`<img src="${esc(c.image||imgSources(c.number)[0]||'')}" data-n="${esc(c.number)}" alt="${esc(c.name)}" loading="lazy" referrerpolicy="no-referrer" onerror="nextSrc(this)">
       <div style="min-width:0"><div class="name">${esc(c.name)}${own[c.number]?`<span class="badge">own ${own[c.number]}</span>`:''}</div>
       <div class="meta">${esc(c.number)} · ${esc(c.rarity)} · ${esc(c.type?c.type[0]+c.type.slice(1).toLowerCase():'–')}</div>
       <div class="meta">${(c.color||[]).map(k=>`<span class="dot" style="background:${COLORS[k]||'#999'}"></span>${esc(k)}`).join(' ')} · Cost ${c.cost??'–'} · Power ${c.power??'–'}</div>
@@ -772,7 +783,7 @@ const LIBS={heic:'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.
 const loadedJs={};
 const loadJs=src=>loadedJs[src]||(loadedJs[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;
   s.onerror=()=>{delete loadedJs[src];rej(new Error('Could not load the export tool. Check your internet connection and try again.'))};document.head.appendChild(s)}));
-const loadImage=(src,cors)=>new Promise(res=>{const i=new Image();if(cors)i.crossOrigin='anonymous';const t=setTimeout(()=>res(null),8000);
+const loadImage=(src,cors)=>new Promise(res=>{const i=new Image();i.referrerPolicy='no-referrer';if(cors)i.crossOrigin='anonymous';const t=setTimeout(()=>res(null),8000);
   i.onload=()=>{clearTimeout(t);res(i)};i.onerror=()=>{clearTimeout(t);res(null)};i.src=src});
 const imgCache=new Map();
 async function imageFor(x){ // -> {data,w,h} or null.  Your own photo first; official art only if the site allows it.
